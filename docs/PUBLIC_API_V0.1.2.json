@@ -1,0 +1,25 @@
+{
+  "checkedAtUtc": "2026-10-03T03:01:48.163229+00:00",
+  "sources": {
+    "listing": "https://data-api.binance.vision/api/v3/exchangeInfo?symbol=NIGHTUSDT&showPermissionSets=false",
+    "price": "https://data-api.binance.vision/api/v3/ticker/price?symbol=NIGHTUSDT",
+    "registry": "https://raw.githubusercontent.com/cardano-foundation/cardano-token-registry/master/mappings/0691b2fecca1ac4f53cb6dfb00b7013e561d1f34403b957cbb5af1fa4e49474854.json"
+  },
+  "cardanoAsset": {
+    "subject": "0691b2fecca1ac4f53cb6dfb00b7013e561d1f34403b957cbb5af1fa4e49474854",
+    "ticker": "NIGHT",
+    "decimals": 6,
+    "name": "NIGHT"
+  },
+  "binanceSpot": {
+    "symbol": "NIGHTUSDT",
+    "baseAsset": "NIGHT",
+    "quoteAsset": "USDT",
+    "status": "TRADING",
+    "isSpotTradingAllowed": true
+  },
+  "ticker": {
+    "symbol": "NIGHTUSDT",
+    "price": "0.05046000"
+  }
+}

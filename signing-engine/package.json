@@ -1,0 +1,31 @@
+{
+  "name": "ledger-lens-signing-engine",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.cjs",
+    "test": "node test.cjs"
+  },
+  "dependencies": {
+    "@bitcoinerlab/secp256k1": "2.0.0",
+    "@cardano-foundation/ledgerjs-hw-app-cardano": "8.0.0",
+    "@emurgo/cardano-serialization-lib-browser": "17.0.0",
+    "@ledgerhq/hw-app-btc": "11.6.0",
+    "@ledgerhq/hw-app-eth": "7.10.0",
+    "@ledgerhq/hw-app-trx": "6.37.0",
+    "@ledgerhq/hw-transport": "6.36.0",
+    "@rollup/plugin-commonjs": "29.0.3",
+    "@rollup/plugin-json": "6.1.0",
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "bip32": "4.0.0",
+    "bitcoinjs-lib": "6.1.7",
+    "buffer": "6.0.3",
+    "ethers": "6.17.0",
+    "rollup": "4.64.0",
+    "rollup-plugin-polyfill-node": "0.13.0",
+    "terser": "5.44.0"
+  },
+  "devDependencies": {
+    "@emurgo/cardano-serialization-lib-nodejs": "17.0.0"
+  }
+}

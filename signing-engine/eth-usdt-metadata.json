@@ -1,0 +1,8 @@
+{
+  "source": "https://cdn.live.ledger.com/cryptoassets/evm/1/erc20-signatures.json",
+  "ticker": "USDT",
+  "decimals": 6,
+  "chainId": 1,
+  "contract": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+  "data": "0455534454dac17f958d2ee523a2206206994597c13d831ec700000006000000013044022078c66ccea3e4dedb15a24ec3c783d7b582cd260daf62fd36afe9a8212a344aed0220160ba8c1c4b6a8aa6565bed20632a091aeeeb7bfdac67fc6589a6031acbf511c"
+}

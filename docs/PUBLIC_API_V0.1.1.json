@@ -1,0 +1,174 @@
+[
+  {
+    "label": "Spot listing https://data-api.binance.vision/BTCUSDT",
+    "status": 200,
+    "bytes": 2224,
+    "symbols": [
+      {
+        "symbol": "BTCUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://data-api.binance.vision/BTCUSDT",
+    "status": 200,
+    "bytes": 45,
+    "symbol": "BTCUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://data-api.binance.vision/ETHUSDT",
+    "status": 200,
+    "bytes": 2225,
+    "symbols": [
+      {
+        "symbol": "ETHUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://data-api.binance.vision/ETHUSDT",
+    "status": 200,
+    "bytes": 44,
+    "symbol": "ETHUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://data-api.binance.vision/TRXUSDT",
+    "status": 200,
+    "bytes": 2228,
+    "symbols": [
+      {
+        "symbol": "TRXUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://data-api.binance.vision/TRXUSDT",
+    "status": 200,
+    "bytes": 41,
+    "symbol": "TRXUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://data-api.binance.vision/ADAUSDT",
+    "status": 200,
+    "bytes": 2227,
+    "symbols": [
+      {
+        "symbol": "ADAUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://data-api.binance.vision/ADAUSDT",
+    "status": 200,
+    "bytes": 41,
+    "symbol": "ADAUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://api.binance.com/BTCUSDT",
+    "status": 200,
+    "bytes": 2224,
+    "symbols": [
+      {
+        "symbol": "BTCUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://api.binance.com/BTCUSDT",
+    "status": 200,
+    "bytes": 45,
+    "symbol": "BTCUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://api.binance.com/ETHUSDT",
+    "status": 200,
+    "bytes": 2225,
+    "symbols": [
+      {
+        "symbol": "ETHUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://api.binance.com/ETHUSDT",
+    "status": 200,
+    "bytes": 44,
+    "symbol": "ETHUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://api.binance.com/TRXUSDT",
+    "status": 200,
+    "bytes": 2228,
+    "symbols": [
+      {
+        "symbol": "TRXUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://api.binance.com/TRXUSDT",
+    "status": 200,
+    "bytes": 41,
+    "symbol": "TRXUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Spot listing https://api.binance.com/ADAUSDT",
+    "status": 200,
+    "bytes": 2227,
+    "symbols": [
+      {
+        "symbol": "ADAUSDT",
+        "status": "TRADING",
+        "isSpotTradingAllowed": true
+      }
+    ]
+  },
+  {
+    "label": "Spot price https://api.binance.com/ADAUSDT",
+    "status": 200,
+    "bytes": 41,
+    "symbol": "ADAUSDT",
+    "hasPositivePrice": true
+  },
+  {
+    "label": "Ethereum RPC",
+    "status": 200,
+    "bytes": 58,
+    "resultIsHex": true
+  },
+  {
+    "label": "TRON keyless example",
+    "status": 200,
+    "bytes": 49122,
+    "success": true,
+    "rows": 1,
+    "trc20Included": true
+  },
+  {
+    "label": "Koios tip",
+    "status": 200,
+    "bytes": 215,
+    "rows": 1
+  }
+]
