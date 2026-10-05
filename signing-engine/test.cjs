@@ -181,6 +181,56 @@ test('recipient rejects checksum damage, testnet, reward address and wrong netwo
   const reward = C.RewardAddress.new(1, C.Credential.from_keyhash(adaKey.derive(2).derive(0).to_raw_key().to_public().hash())).to_address().to_bech32();
   assert.throws(() => E.validateRecipient('ADA', reward));
 });
+async function verifyThroughNativeBridge(payload, transport) {
+  let completed;
+  global.NativeLedger = {
+    exchange(id, apdu) { transport.exchange(Buffer.from(apdu, 'hex')).then(response => global.ledgerReply(id, response.toString('hex'), ''), error => global.ledgerReply(id, '', error.message)); },
+    complete(id, result, error) { completed = { result, error }; }
+  };
+  try { await global.runLedgerOperation('address-test', 'verifyAddress', payload); return completed; }
+  finally { delete global.NativeLedger; }
+}
+test('BTC device address display uses selected receive index and rejects a different returned address', async () => {
+  const index = 3, address = bitcoin.payments.p2wpkh({ pubkey: node.derive(0).derive(index).publicKey }).address;
+  class AddressFixture extends Transport {
+    constructor(wrong = false) { super(); this.wrong = wrong; this.displayed = false; }
+    async exchange(apdu) {
+      if (apdu[1] === 5) return Buffer.concat([bip32.fromSeed(Buffer.alloc(32, 7)).fingerprint, Buffer.from('9000', 'hex')]);
+      if (apdu[1] === 0) return Buffer.concat([Buffer.from(btc.account.publicKey), Buffer.from('9000', 'hex')]);
+      assert.equal(apdu[1], 3); assert.equal(apdu[5], 1); assert.equal(apdu.at(-5), 0);
+      assert.equal(apdu.readUInt32BE(apdu.length - 4), index); this.displayed = true;
+      return Buffer.concat([Buffer.from(this.wrong ? btc.account.address : address), Buffer.from('9000', 'hex')]);
+    }
+  }
+  const fixture = new AddressFixture(), payload = { ...btc.account, receiveIndex: index, address };
+  const result = await verifyThroughNativeBridge(payload, fixture);
+  assert.equal(result.error, ''); assert.equal(JSON.parse(result.result), address); assert(fixture.displayed);
+  assert.match((await verifyThroughNativeBridge(payload, new AddressFixture(true))).error, /different address/);
+  assert.match((await verifyThroughNativeBridge({ ...payload, receiveIndex: -1 }, new AddressFixture())).error, /index/);
+});
+test('Cardano v7/v8 display and return the selected payment path with the original stake path', async () => {
+  const index = 2;
+  const stake = adaKey.derive(2).derive(0).to_raw_key().to_public().hash();
+  const selected = C.BaseAddress.new(1, C.Credential.from_keyhash(adaKey.derive(0).derive(index).to_raw_key().to_public().hash()), C.Credential.from_keyhash(stake)).to_address();
+  class AddressFixture extends Transport {
+    constructor(major) { super(); this.major = major; this.displayed = false; }
+    setScrambleKey() {}
+    async exchange(apdu) {
+      if (apdu[1] === 0) return Buffer.from([this.major, this.major === 7 ? 1 : 0, 0, 0, 0x90, 0]);
+      assert.equal(apdu[1], 0x11);
+      const spending = Buffer.alloc(21); spending[0] = 5;
+      [0x8000073c, 0x80000717, 0x80000000, 0, index].forEach((value, i) => spending.writeUInt32BE(value, 1 + i * 4));
+      assert(apdu.subarray(5).includes(spending));
+      if (apdu[2] === 2) { this.displayed = true; return Buffer.from('9000', 'hex'); }
+      assert.equal(apdu[2], 1);
+      return Buffer.concat([Buffer.from(selected.to_bytes()), Buffer.from('9000', 'hex')]);
+    }
+  }
+  for (const major of [7, 8]) {
+    const fixture = new AddressFixture(major), result = await verifyThroughNativeBridge({ ...ada.account, receiveIndex: index, address: selected.to_bech32() }, fixture);
+    assert.equal(result.error, ''); assert.equal(JSON.parse(result.result), selected.to_bech32()); assert(fixture.displayed);
+  }
+});
 // Only public requests are shipped to instrumented tests, never the fixture secret keys above.
 fs.mkdirSync(path.join(__dirname, '../app/src/androidTest/assets'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, '../app/src/androidTest/assets/transaction-fixtures.json'), JSON.stringify([eth, usdt, tron, tronUsdt, btc, ada, night]));

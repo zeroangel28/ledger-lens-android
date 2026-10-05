@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -43,25 +44,43 @@ private fun number(n: BigDecimal) = n.stripTrailingZeros().toPlainString()
     }
 }
 
-@Composable fun ReceiveScreen(a: Account, s: Strings, busy: Boolean, connection: String?, onClose: () -> Unit, onConnect: () -> Unit, onVerify: () -> Unit, asset: Asset? = null) {
+@Composable fun ReceiveScreen(a: Account, s: Strings, busy: Boolean, connection: String?, onClose: () -> Unit, onConnect: () -> Unit, onVerify: (Int) -> Unit, asset: Asset? = null, onGenerate: (() -> Unit)? = null) {
     val clipboard = LocalClipboardManager.current; val context = LocalContext.current
-    var copied by remember { mutableStateOf(false) }
-    val qr = remember(a.address) {
-        val matrix = MultiFormatWriter().encode(a.address, BarcodeFormat.QR_CODE, 640, 640)
+    var selectedIndex by rememberSaveable(a.id) { mutableIntStateOf(a.receiveIndex) }
+    var lastIssuedIndex by rememberSaveable(a.id) { mutableIntStateOf(a.receiveIndex) }
+    LaunchedEffect(a.receiveIndex) {
+        if (lastIssuedIndex != a.receiveIndex) { selectedIndex = a.receiveIndex; lastIssuedIndex = a.receiveIndex }
+    }
+    val receiving = remember(a.id, a.publicKey, selectedIndex) { a.receivingAddress(selectedIndex) }
+    var copied by remember(receiving.address) { mutableStateOf(false) }
+    val qr = remember(receiving.address) {
+        val matrix = MultiFormatWriter().encode(receiving.address, BarcodeFormat.QR_CODE, 640, 640)
         val pixels = IntArray(640 * 640) { i -> if (matrix[i % 640, i / 640]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }
         Bitmap.createBitmap(pixels, 640, 640, Bitmap.Config.ARGB_8888).asImageBitmap()
     }
     TransferWindow(s["receive"], s, busy, onClose) {
         Text(a.name, style = MaterialTheme.typography.titleLarge)
         Text((asset?.symbol ?: a.chain.symbol) + " · " + a.chain.title + " · Mainnet", color = MaterialTheme.colorScheme.primary)
+        if (a.canRotateReceivingAddress) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                IconButton(onClick = { selectedIndex-- }, enabled = !busy && selectedIndex > 0) { Icon(Icons.Outlined.ChevronLeft, s["previousReceive"]) }
+                Text(s["receiveNumber"] + " #" + (selectedIndex + 1), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = { selectedIndex++ }, enabled = !busy && selectedIndex < a.receiveIndex) { Icon(Icons.Outlined.ChevronRight, s["nextReceive"]) }
+            }
+            Text("m/" + receiving.path, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+            if (onGenerate != null) FilledTonalButton(onClick = onGenerate, enabled = !busy && a.receiveIndex < MAX_RECEIVE_INDEX, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text(s[if (busy) "updating" else "newReceive"])
+            }
+            Text(s[if (a.chain == Chain.BTC) "btcNewReceiveHint" else "adaNewReceiveHint"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        } else Text(s["singleReceiveHint"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         Image(qr, s["receiveQr"], Modifier.fillMaxWidth().aspectRatio(1f).background(Color.White))
-        Text(a.address, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
+        Text(receiving.address, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
         Text(s["receiveHint"], color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = { clipboard.setText(AnnotatedString(a.address)); copied = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Button(onClick = { clipboard.setText(AnnotatedString(receiving.address)); copied = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
             Icon(Icons.Outlined.ContentCopy, null); Spacer(Modifier.width(8.dp)); Text(s[if (copied) "copied" else "copy"])
         }
-        OutlinedButton(onClick = { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, a.address), s["share"])) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(s["share"]) }
-        OutlinedButton(onClick = if (connection == null) onConnect else onVerify, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(s[if (connection == null) "connect" else "verifyAddress"]) }
+        OutlinedButton(onClick = { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, receiving.address), s["share"])) }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(s["share"]) }
+        OutlinedButton(onClick = { if (connection == null) onConnect() else onVerify(selectedIndex) }, enabled = !busy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(s[if (connection == null) "connect" else "verifyAddress"]) }
     }
 }
 

@@ -38,7 +38,7 @@ class EncryptedStore(context: Context) {
     }
     companion object {
         fun encode(s: PortfolioState): JSONObject {
-            val accounts = JSONArray(s.accounts.map { a -> JSONObject().put("id", a.id).put("name", a.name).put("chain", a.chain.name).put("path", a.path).put("key", a.publicKey).put("address", a.address).put("at", a.importedAt) })
+            val accounts = JSONArray(s.accounts.map { a -> JSONObject().put("id", a.id).put("name", a.name).put("chain", a.chain.name).put("path", a.path).put("key", a.publicKey).put("address", a.address).put("at", a.importedAt).put("receiveIndex", a.receiveIndex) })
             val p = s.preferences
             val prefs = JSONObject().put("language", p.language).put("theme", p.theme).put("zeroBalance", p.hideZeroBalance).put("zeroValue", p.hideZeroValue).put("hidden", p.revealHidden).put("privacy", p.privacy).put("gap", p.scanGap).put("max", p.scanMax).put("blockfrost", p.blockfrostKey).put("alchemy", p.alchemyKey).put("tronGrid", p.tronGridKey)
             val snapshots = JSONObject()
@@ -48,7 +48,7 @@ class EncryptedStore(context: Context) {
                         a.quote?.let { put("quote", JSONObject().put("price", it.price.toPlainString()).put("state", it.state.name).put("at", it.at)) }
                     }
                 })
-                snapshots.put(id, JSONObject().put("assets", assets).put("at", snapshot.at).put("error", snapshot.error).put("limited", snapshot.scanLimited).put("warning", snapshot.warning).put("complete", snapshot.complete).put("lastAttemptAt", snapshot.lastAttemptAt))
+                snapshots.put(id, JSONObject().put("assets", assets).put("at", snapshot.at).put("error", snapshot.error).put("limited", snapshot.scanLimited).put("warning", snapshot.warning).put("complete", snapshot.complete).put("lastAttemptAt", snapshot.lastAttemptAt).put("highestUsedReceiveIndex", snapshot.highestUsedReceiveIndex))
             }
             val markets = JSONObject()
             s.spotMarkets.forEach { (pair, market) -> markets.put(pair, JSONObject().put("tradable", market.tradable).put("checkedAt", market.checkedAt)) }
@@ -57,7 +57,7 @@ class EncryptedStore(context: Context) {
         }
         fun decode(root: JSONObject): PortfolioState {
             require(root.getInt("schema") == 1)
-            val accounts = root.getJSONArray("accounts").let { rows -> (0 until rows.length()).map { rows.getJSONObject(it).let { a -> Account(a.getString("id"), a.getString("name"), Chain.valueOf(a.getString("chain")), a.getString("path"), a.getString("key"), a.getString("address"), a.getLong("at")) } } }
+            val accounts = root.getJSONArray("accounts").let { rows -> (0 until rows.length()).map { rows.getJSONObject(it).let { a -> Account(a.getString("id"), a.getString("name"), Chain.valueOf(a.getString("chain")), a.getString("path"), a.getString("key"), a.getString("address"), a.getLong("at"), a.optInt("receiveIndex", 0).also { require(it in 0..MAX_RECEIVE_INDEX) }) } } }
             val p = root.getJSONObject("preferences")
             val preferences = Preferences(p.optString("language", "zh-TW"), p.optString("theme", "system"), p.optBoolean("zeroBalance"), p.optBoolean("zeroValue"), p.optBoolean("hidden"), p.optBoolean("privacy"), p.optInt("gap", 20).coerceIn(5, 100), p.optInt("max", 200).coerceIn(20, 1000), p.optString("blockfrost"), p.optString("alchemy"), p.optString("tronGrid"))
             val snapshots = root.getJSONObject("snapshots").let { all -> all.keys().asSequence().associateWith { id ->
@@ -65,7 +65,7 @@ class EncryptedStore(context: Context) {
                 val assets = (0 until rows.length()).map { rows.getJSONObject(it).let { a ->
                     Asset(a.getString("id"), a.getString("account"), Chain.valueOf(a.getString("chain")), a.getString("symbol"), a.getString("name"), BigDecimal(a.getString("quantity")), a.optString("contract").takeIf { it.isNotEmpty() }, a.getInt("decimals"), a.optJSONObject("quote")?.let { q -> Quote(BigDecimal(q.getString("price")), QuoteState.valueOf(q.getString("state")), q.getLong("at")) }, a.optBoolean("hidden"), a.optBoolean("balanceKnown", true))
                 } }
-                AccountSnapshot(assets, snapshot.optString("error").takeIf { it.isNotEmpty() }, snapshot.getLong("at"), snapshot.optBoolean("limited"), snapshot.optString("warning").takeIf { it.isNotEmpty() }, snapshot.optBoolean("complete", true), snapshot.optLong("lastAttemptAt", if (accounts.any { it.id == id && it.chain == Chain.ADA }) snapshot.getLong("at") else 0))
+                AccountSnapshot(assets, snapshot.optString("error").takeIf { it.isNotEmpty() }, snapshot.getLong("at"), snapshot.optBoolean("limited"), snapshot.optString("warning").takeIf { it.isNotEmpty() }, snapshot.optBoolean("complete", true), snapshot.optLong("lastAttemptAt", if (accounts.any { it.id == id && it.chain == Chain.ADA }) snapshot.getLong("at") else 0), snapshot.optInt("highestUsedReceiveIndex", -1))
             } }
             val markets = root.optJSONObject("spotMarkets")?.let { rows -> rows.keys().asSequence().filter { it.matches(Regex("[A-Z0-9]{1,32}USDT")) }.associateWith { pair ->
                 val row = rows.getJSONObject(pair); SpotMarket(row.getBoolean("tradable"), row.getLong("checkedAt"))

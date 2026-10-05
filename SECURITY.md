@@ -14,6 +14,8 @@ The transaction ID and submission state are persisted before a single-attempt br
 
 Portfolio data and provider keys use AES-GCM with an Android Keystore key and an atomic file. Encryption failure blocks overwrite rather than silently resetting the portfolio. HTTPS-only requests and disabled cleartext traffic limit accidental credential exposure. API error messages omit key-bearing request paths. Untrusted token symbols never establish Binance pricing identity.
 
+New BTC/Cardano receiving addresses are derived locally from imported public account keys. Their indices are persisted before display, with bounded generation and discovery. Address verification requests the selected nonzero receive path while retaining the original account/stake identity; a device result differing from the selected address fails. BTC transaction-history query failures stop generation. Cardano generation is offline; another wallet may already have used the same derived index. No software-wallet secret is created. Losing app data loses issued-index bookkeeping, so independent wallet recovery may need a larger discovery gap.
+
 Physical Flex USB/BLE interoperability and device approval/rejection/disconnection flows still require hardware testing. Bluetooth pairing and Ledger firmware provide their own trust boundary; phone-side code cannot prove firmware authenticity. Review device-displayed addresses, amounts, network and token before approving an import or transaction. Never enter a recovery phrase into this app.
 
 Report a vulnerability privately to the repository owner through their GitHub profile contact details. Do not publish credentials or personal account xpubs in an issue. There is no claim of a formal audit or production certification.

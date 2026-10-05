@@ -197,10 +197,31 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
             finally { mutableTransfer.update { it.copy(working = false) }; mutableState.update { it.copy(busy = false) } }
         }
     }
-    fun verifyAddress(accountId: String) = action {
+    fun generateReceiveAddress(accountId: String) = action {
+        check(!storageLocked) { "Encrypted storage is unavailable" }
+        val account = mutableState.value.accounts.first { it.id == accountId }
+        check(account.canRotateReceivingAddress)
+        val knownUsed = mutableState.value.snapshots[accountId]?.highestUsedReceiveIndex ?: -1
+        val first = maxOf(account.receiveIndex + 1, knownUsed + 1)
+        val candidate = if (account.chain == Chain.BTC) balances.nextBitcoinReceiveIndex(account, mutableState.value.preferences, first, knownUsed) else BtcReceiveCandidate(first, knownUsed)
+        val index = candidate.index
+        check(index - candidate.highestUsed <= mutableState.value.preferences.scanGap) { "Unused receiving address gap reached" }
+        check(index in 1..MAX_RECEIVE_INDEX) { "Receiving address scan limit reached" }
+        withContext(Dispatchers.Default) { account.receivingAddress(index) }
+        fun issued(s: PortfolioState) = s.copy(accounts = s.accounts.map { a -> if (a.id == accountId) a.copy(receiveIndex = index) else a }, snapshots = s.snapshots.mapValues { (id, snapshot) -> if (id == accountId) snapshot.copy(highestUsedReceiveIndex = candidate.highestUsed) else snapshot })
+        saveMutex.withLock {
+            // Publish only after encrypted persistence succeeds, before another save can acquire the lock.
+            val saved = issued(mutableState.value)
+            withContext(Dispatchers.IO) { store.save(saved) }
+            mutableState.update { issued(it) }
+        }
+    }
+    fun verifyAddress(accountId: String, receiveIndex: Int = 0) = action {
         val a = mutableState.value.accounts.find { it.id == accountId } ?: error("Account unavailable")
         val session = transport ?: error("Connect Ledger first")
-        engine.run("verifyAddress", accountJson(a), session, LedgerPermit.address(a.chain))
+        require(receiveIndex in 0..a.receiveIndex)
+        val receiving = withContext(Dispatchers.Default) { a.receivingAddress(receiveIndex) }
+        engine.run("verifyAddress", accountJson(a).put("address", receiving.address).put("receiveIndex", receiveIndex), session, LedgerPermit.address(a.chain))
         reportMessage(io.ledgerlens.app.ui.Strings(mutableState.value.preferences.language)["addressVerified"])
     }
     fun refreshTransfers() { viewModelScope.launch { checkTransfers(force = true) } }

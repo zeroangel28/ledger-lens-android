@@ -46,7 +46,7 @@ class MainActivity: ComponentActivity() {
                 }, model::connectBle, model::disconnect, model::importAccount, model::updatePreferences, model::toggleHidden, model::removeAccount, model::dismissMessage, onPrices = model::refreshPrices,
                     transfer = transfer, onSend = model::openTransfer, onTransferEdit = model::editTransfer, onTransferClose = model::closeTransfer,
                     onTransferScan = { qrScanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(Strings(state.preferences.language)["scanQr"]).setBeepEnabled(false).setOrientationLocked(false)) },
-                    onPrepare = model::prepareTransfer, onConfirm = model::confirmTransfer, onVerify = model::verifyAddress, onStatus = model::refreshTransfers)
+                    onPrepare = model::prepareTransfer, onConfirm = model::confirmTransfer, onVerify = model::verifyAddress, onStatus = model::refreshTransfers, onGenerateReceive = model::generateReceiveAddress)
             }
         }
     }

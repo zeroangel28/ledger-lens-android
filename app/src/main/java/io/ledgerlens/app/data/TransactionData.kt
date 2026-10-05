@@ -110,7 +110,7 @@ class TransactionData(private val http: Http) {
         val found = JSONArray(); var changeIndex = 0
         for (branch in 0..1) {
             var empty = 0; var exhausted = true
-            for (index in 0 until p.scanMax) {
+            for (index in 0 until a.discoveryMax(p)) {
                 val address = AddressCodec.btc(a.publicKey, branch, index)
                 val info = JSONObject(http.get("$base/address/$address"))
                 check(info.getString("address") == address)
@@ -127,7 +127,7 @@ class TransactionData(private val http: Http) {
                         found.put(JSONObject().put("txid", txid).put("vout", u.getInt("vout")).put("value", u.get("value").toString()).put("rawTx", raw).put("branch", branch).put("index", index))
                     }
                 } else empty++
-                if (empty >= p.scanGap) { exhausted = false; break }
+                if (!continueReceiveDiscovery(empty, index + 1, branch, a, p)) { exhausted = false; break }
             }
             check(!exhausted) { "Bitcoin address scan reached its limit; increase the scan limit before sending" }
         }
@@ -137,8 +137,9 @@ class TransactionData(private val http: Http) {
     }
     private suspend fun cardano(a: Account, p: Preferences): JSONObject = withContext(Dispatchers.Default) {
         val owned = mutableMapOf<String, Pair<Int, Int>>()
-        for (branch in 0..1) for (index in 0 until p.scanMax) owned[AddressCodec.cardano(a.publicKey, branch, index)] = branch to index
+        for (branch in 0..1) for (index in 0 until a.discoveryMax(p)) owned[AddressCodec.cardano(a.publicKey, branch, index)] = branch to index
         val stake = AddressCodec.stake(a.publicKey); val rows = JSONArray(); val addresses = mutableSetOf(a.address)
+        for (index in 0..a.receiveIndex) addresses += a.receivingAddress(index).address
         val params: JSONObject; val slot: Long
         if (p.blockfrostKey.isNotBlank()) {
             params = JSONObject(http.get("$bf/epochs/latest/parameters", bfHeaders(p)))

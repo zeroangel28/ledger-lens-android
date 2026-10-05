@@ -27,3 +27,11 @@ Repeat each flow on USB and BLE for BTC Native SegWit, ETH, TRX, ADA, Ethereum U
 6. On first confirmation refresh source holdings once. Ordinary Cardano refresh remains daily; price-only refresh must not query Cardano holdings. Backgrounding stops quote/status timers.
 
 Passing mock/emulator checks is not evidence that the physical device displayed or approved a transaction.
+
+## v0.2.1 receiving-address checks
+
+1. On both USB and BLE, generate BTC and Cardano addresses at nonzero indices. Compare full paths and addresses on the phone, QR, clipboard, share sheet and device display. Reject an address request and disconnect mid-request; no verification success should be reported.
+2. Check the original index-0 address and a nonzero address against an independent trusted wallet. Restart the app and confirm the issued index persists. Browse an older address, rotate the phone and confirm the selection persists.
+3. Confirm BTC generation skips confirmed and pending history. Deny network access or force HTTP 429; no new address should be issued. Reach the unused gap and confirm the visible explanation rather than an unbounded sequence.
+4. Confirm Cardano generation works offline and does not change the last holdings-attempt timestamp. All generated base addresses should retain the original stake credential.
+5. With separately controlled test funds, receive at a new address, discover its balance, then review spending its UTXO. BTC signing ownership and Cardano token change must still match the original Ledger account. These fund-moving checks remain manual and pending.

@@ -2,9 +2,14 @@ package io.ledgerlens.app
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.test.platform.app.InstrumentationRegistry
 import io.ledgerlens.app.model.*
+import io.ledgerlens.app.crypto.AddressCodec
 import io.ledgerlens.app.ui.*
 import org.json.JSONArray
 import org.junit.Assert.*
@@ -62,5 +67,39 @@ class TransferUiTest {
         compose.onNodeWithText("Maximum · reserve fees").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Estimate fees and review").performScrollTo().assertIsNotEnabled()
         capture("v020-send-light.png")
+    }
+    @Test fun generatedBitcoinAddressCanBeViewedCopiedAndVerifiedWithoutChangingSourceAccount() {
+        val key = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+        val original = Account("btc", "DEMO Bitcoin", Chain.BTC, Chain.BTC.path(0), key, AddressCodec.btc(key, 0, 0))
+        var a by mutableStateOf(original); var verified = -1
+        compose.setContent { LensTheme("dark") { ReceiveScreen(a, Strings("zh-TW"), false, "USB", {}, {}, { verified = it }, onGenerate = { a = a.copy(receiveIndex = a.receiveIndex + 1) }) } }
+        compose.onNodeWithText("產生新收款地址").performScrollTo().performClick()
+        compose.onNodeWithText("收款地址 #2").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("m/84'/0'/0'/0/1").assertIsDisplayed()
+        compose.onNodeWithText("bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g").performScrollTo().assertIsDisplayed()
+        capture("v021-receive-btc-dark.png")
+        compose.onNodeWithText("在 Ledger 核對地址").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, verified); assertEquals(original.address, a.address) }
+        compose.onNodeWithContentDescription("上一個收款地址").performScrollTo().performClick()
+        compose.onNodeWithText(original.address).performScrollTo().assertIsDisplayed()
+    }
+    @Test fun receivingHistoryRemainsUsableWithLargeTextAndLightTheme() {
+        val a = fixture().copy(receiveIndex = 2)
+        compose.setContent { CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.6f)) { LensTheme("light") { ReceiveScreen(a, Strings("en"), false, null, {}, {}, {}, onGenerate = {}) } } }
+        compose.onNodeWithText("Generate new receiving address").performScrollTo().assertIsEnabled()
+        compose.onNodeWithText(a.receivingAddress().address).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Previous receiving address").performScrollTo().performClick()
+        compose.onNodeWithText("Receiving address #2").assertIsDisplayed()
+        capture("v021-receive-ada-large-light.png")
+    }
+    @Test fun historicalAddressSelectionSurvivesStateRestoration() {
+        val a = fixture().copy(receiveIndex = 2)
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { LensTheme("dark") { ReceiveScreen(a, Strings("en"), false, null, {}, {}, {}) } }
+        compose.onNodeWithContentDescription("Previous receiving address").performScrollTo().performClick()
+        compose.onNodeWithText("Receiving address #2").assertIsDisplayed()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithText("Receiving address #2").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(a.receivingAddress(1).address).performScrollTo().assertIsDisplayed()
     }
 }

@@ -2,7 +2,7 @@
 
 Kotlin / Jetpack Compose Android companion for **Ledger Flex**. Import public keys over USB or Bluetooth, then view Bitcoin, Ethereum, TRON and Cardano mainnet holdings without keeping the device connected. Prices come exclusively from **Binance Spot**, denominated in USDT.
 
-**v0.2.0 adds receiving and Ledger-approved transfers.** Supported sending assets: Native SegWit BTC, ETH, TRX, ADA, Ethereum USDT, TRON USDT and Cardano NIGHT. Private wallet keys and recovery phrases never leave Ledger. Physical Flex signing over USB and BLE still needs device validation; the supplied APK is a debug test build. This independent project is not affiliated with Ledger or Binance.
+**v0.2.1 adds new BTC and Cardano receiving addresses within an imported Ledger account.** Supported sending assets: Native SegWit BTC, ETH, TRX, ADA, Ethereum USDT, TRON USDT and Cardano NIGHT. Private wallet keys and recovery phrases never leave Ledger. Physical Flex signing and address display over USB and BLE still need device validation; the supplied APK is a debug test build. This independent project is not affiliated with Ledger or Binance.
 
 ## Features
 
@@ -14,7 +14,7 @@ Kotlin / Jetpack Compose Android companion for **Ledger Flex**. Import public ke
 - Explicit balance/price timestamps, incomplete-data notices and retained last-known data on network failures.
 - Routine Cardano holdings synchronize at most once per account every 24 hours, including failed attempts. Preparing a transfer and the first successful confirmation refresh the source account separately. A synchronization can require multiple HTTP requests.
 - Persistent 24-hour positive/negative Binance market cache; prices use batched requests every 30 seconds while foregrounded, plus manual refresh. Price updates remain independent of balance scans and transaction polling.
-- Receive with the imported address, QR, copy/share and optional on-device address verification. Send with paste/QR, exact amounts or maximum, automatic fee reserve, phone review, Ledger approval and local signature verification before automatic broadcast.
+- Receive with QR, copy/share and optional on-device verification of the selected address. BTC and Cardano can derive new receiving addresses from the imported public key, with encrypted address-index persistence and previous/next address navigation. Original addresses remain valid. Send with paste/QR, exact amounts or maximum, automatic fee reserve, phone review, Ledger approval and local signature verification before automatic broadcast.
 - Persisted pending/unknown/confirmed transaction history; network uncertainty never automatically causes another submission. Accounts with unresolved transfers cannot be removed or used to send again.
 - Asset rows show their Binance Spot unit price. Unavailable balances/quotes display as unknown rather than zero; partial totals are labelled.
 - Android Keystore AES-GCM encryption for public keys, cached holdings and API credentials; app backup disabled.
@@ -32,6 +32,16 @@ Kotlin / Jetpack Compose Android companion for **Ledger Flex**. Import public ke
 Cardano uses your **mainnet Blockfrost project key** when supplied; otherwise it uses public Koios queries. Existing keys continue using Blockfrost. Add a **TronGrid API key** in Settings to avoid strict keyless-query limits; keys or quotas do not guarantee provider availability. Ethereum uses `https://ethereum-rpc.publicnode.com` for balance RPC, and Blockscout for token indexing; an optional Alchemy key uses Alchemy for both. Keys are entered on the phone, encrypted locally and excluded from source control. No Binance key is needed.
 
 The default scan/validation cap is 200 addresses per branch. Bitcoin stops after 20 consecutive unused addresses per branch; these limits can be adjusted in Settings. Cardano uses stake-linked discovery and rejects addresses whose payment key is outside the derived address set. An unregistered stake account falls back to scanning the first gap-sized set of base addresses. Accounts beyond the selected index, nonstandard paths, legacy/Taproot Bitcoin, Cardano enterprise/Byron addresses, staking rewards/frozen TRX, NFT valuation and DeFi positions are outside this release. A capped or failed query is visibly marked; this is not a guarantee of finding every asset on every possible path.
+
+## New receiving addresses
+
+Open **Accounts → Receive → Generate new receiving address** for Bitcoin or Cardano. The public account key derives `account/0/index`; the original account identity and signing path stay intact. The chosen index is encrypted and saved before its address is displayed. QR, copy, share and Ledger verification use the selected historical or latest address.
+
+Bitcoin checks confirmed and pending transaction history, skipping used candidate addresses; internet is required for generation. Provider failures stop generation. Cardano derives its next payment address offline with the original stake credential, without a holdings query or additional API calls; it does not promise the next index is unused in another wallet. Routine Cardano holdings remain daily.
+
+Generation stops at the configured unused-address gap or index 899. Use existing addresses until holdings discovery finds activity, rather than generating an unbounded unused sequence. Receive/change discovery and transfer UTXO selection include every issued receiving address, even beyond an earlier empty gap; the discovery cap expands as needed up to 1,000. Other wallets may need a larger gap setting to restore addresses, especially after app data is lost. App backup remains disabled.
+
+Ethereum and TRON keep their imported account address. For another address, connect Ledger and import another account index using the existing account import flow. This app does not generate wallet seeds or software wallet keys.
 
 ## Prices
 

@@ -9,6 +9,7 @@ import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.BigInteger
 
+data class BtcReceiveCandidate(val index: Int, val highestUsed: Int)
 class ChainBalances(private val http: Http) {
     private fun BigInteger.checkedInt(): Int {
         require(this >= BigInteger.valueOf(Int.MIN_VALUE.toLong()) && this <= BigInteger.valueOf(Int.MAX_VALUE.toLong())) { "Integer overflow in token metadata" }
@@ -22,8 +23,44 @@ class ChainBalances(private val http: Http) {
     }
     private fun native(a: Account, balance: BigDecimal) = Asset("${a.id}:native", a.id, a.chain, a.chain.symbol, a.chain.title, balance, decimals = a.chain.decimals)
     private fun token(a: Account, id: String, symbol: String, name: String, quantity: BigDecimal, decimals: Int) = Asset("${a.id}:$id", a.id, a.chain, symbol.take(32), name.take(128), quantity, id, decimals)
+    suspend fun nextBitcoinReceiveIndex(a: Account, p: Preferences, first: Int, highestKnownUsed: Int = -1): BtcReceiveCandidate {
+        require(a.chain == Chain.BTC && first >= 1)
+        suspend fun wasUsed(index: Int): Boolean {
+            val address = a.receivingAddress(index).address
+            var failure: Exception? = null
+            var used: Boolean? = null
+            for (base in listOf("https://mempool.space/api", "https://blockstream.info/api")) {
+                try {
+                    val info = JSONObject(http.get("$base/address/$address"))
+                    check(info.getString("address") == address) { "BTC provider returned the wrong address" }
+                    val confirmed = info.getJSONObject("chain_stats").getLong("tx_count")
+                    val pending = info.getJSONObject("mempool_stats").getLong("tx_count")
+                    require(confirmed >= 0 && pending >= 0)
+                    used = confirmed > 0 || pending > 0
+                    break
+                } catch (e: CancellationException) { throw e } catch (e: Exception) { failure = e }
+            }
+            if (used == null) throw failure ?: IllegalStateException("BTC address history unavailable")
+            return used
+        }
+        var highestUsed = highestKnownUsed
+        // Limit consecutive unused addresses so standard gap-limited wallet recovery can find funds.
+        for (index in a.receiveIndex downTo maxOf(0, highestKnownUsed + 1)) {
+            if (wasUsed(index)) { highestUsed = maxOf(highestUsed, index); break }
+            delay(150)
+        }
+        for (index in first..minOf(MAX_RECEIVE_INDEX, a.discoveryMax(p) - 1)) {
+            if (!wasUsed(index)) {
+                check(index - highestUsed <= p.scanGap) { "Unused receiving address gap reached" }
+                return BtcReceiveCandidate(index, highestUsed)
+            }
+            highestUsed = index
+            delay(150)
+        }
+        error("Receiving address scan limit reached")
+    }
     private suspend fun btc(a: Account, p: Preferences): AccountSnapshot {
-        var sum = BigDecimal.ZERO; var capped = false
+        var sum = BigDecimal.ZERO; var capped = false; var highestUsed = -1
         var preferred = "https://mempool.space/api"
         suspend fun addressInfo(address: String): JSONObject {
             var failure: Exception? = null
@@ -40,19 +77,20 @@ class ChainBalances(private val http: Http) {
         }
         for (branch in 0..1) {
             var gap = 0; var i = 0
-            while (gap < p.scanGap && i < p.scanMax) {
+            while (continueReceiveDiscovery(gap, i, branch, a, p) && i < a.discoveryMax(p)) {
                 val address = AddressCodec.btc(a.publicKey, branch, i++)
                 val data = addressInfo(address)
                 val confirmed = data.getJSONObject("chain_stats"); val pending = data.getJSONObject("mempool_stats")
                 val used = confirmed.getLong("tx_count") + pending.getLong("tx_count") > 0
+                if (branch == 0 && used) highestUsed = i - 1
                 gap = if (used) 0 else gap + 1
                 // Show confirmed holdings. Pending outgoing/incoming are not silently folded in.
                 sum += rawAmount((confirmed.getLong("funded_txo_sum") - confirmed.getLong("spent_txo_sum")).toString(), 8)
                 delay(150)
             }
-            if (gap < p.scanGap) capped = true
+            if (continueReceiveDiscovery(gap, i, branch, a, p)) capped = true
         }
-        return AccountSnapshot(listOf(native(a, sum)), scanLimited = capped)
+        return AccountSnapshot(listOf(native(a, sum)), scanLimited = capped, highestUsedReceiveIndex = highestUsed)
     }
     private suspend fun eth(a: Account, p: Preferences): AccountSnapshot {
         val body = JSONObject().put("jsonrpc", "2.0").put("id", 1).put("method", "eth_getBalance").put("params", JSONArray(listOf(a.address, "latest")))
@@ -187,9 +225,12 @@ class ChainBalances(private val http: Http) {
             val addresses = row.getJSONArray("addresses")
             for (j in 0 until addresses.length()) found += addresses.getString(j)
         }
-        val derived = mutableSetOf<String>()
+        val derived = mutableSetOf<String>(); var highestUsed = -1
         // Never trust an address solely because it reuses this account's stake credential.
-        for (branch in 0..1) for (i in 0 until p.scanMax) derived += AddressCodec.cardano(a.publicKey, branch, i)
+        for (branch in 0..1) for (i in 0 until a.discoveryMax(p)) {
+            val address = AddressCodec.cardano(a.publicKey, branch, i); derived += address
+            if (branch == 0 && address in found) highestUsed = i
+        }
         val directScan = found.isEmpty()
         val owned = if (directScan) derived.toList() else found.filter { it in derived }
         val limited = directScan || found.any { it !in derived }
@@ -231,18 +272,21 @@ class ChainBalances(private val http: Http) {
                 val name = runCatching { unit.drop(56).unhex().toString(Charsets.UTF_8) }.getOrDefault(unit.take(12)).ifBlank { unit.take(12) }
                 assets += token(a, unit, name, name, quantity, scales.getValue(unit))
             }
-            return AccountSnapshot(assets, scanLimited = limited, complete = !limited)
+            return AccountSnapshot(assets, scanLimited = limited, complete = !limited, highestUsedReceiveIndex = highestUsed)
         } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { return AccountSnapshot(assets, warning = e.message ?: "Cardano token query failed", scanLimited = limited, complete = false) }
+        catch (e: Exception) { return AccountSnapshot(assets, warning = e.message ?: "Cardano token query failed", scanLimited = limited, complete = false, highestUsedReceiveIndex = highestUsed) }
     }
     private suspend fun ada(a: Account, p: Preferences): AccountSnapshot {
         if (p.blockfrostKey.isBlank()) return adaKoios(a, p)
         val headers = mapOf("project_id" to p.blockfrostKey)
         val stake = AddressCodec.stake(a.publicKey)
         // Stake-linked discovery followed by payment-key validation avoids accepting mangled addresses.
-        val derived = mutableSetOf<String>()
-        for (branch in 0..1) for (i in 0 until p.scanMax) derived += AddressCodec.cardano(a.publicKey, branch, i)
-        val found = mutableListOf<String>(); var page = 1
+        val derived = mutableSetOf<String>(); val receivingIndices = mutableMapOf<String, Int>()
+        for (branch in 0..1) for (i in 0 until a.discoveryMax(p)) {
+            val address = AddressCodec.cardano(a.publicKey, branch, i); derived += address
+            if (branch == 0) receivingIndices[address] = i
+        }
+        val found = mutableListOf<String>(); var page = 1; var directScan = false
         try {
             while (true) {
                 check(page <= 100) { "Cardano address pagination limit reached" }
@@ -253,7 +297,8 @@ class ChainBalances(private val http: Http) {
         } catch (e: Exception) {
             // An unregistered stake account may still hold ADA. Only a 404 uses direct scanning.
             if (e.message?.endsWith("HTTP 404") != true) throw e
-            for (branch in 0..1) for (i in 0 until p.scanGap) found += AddressCodec.cardano(a.publicKey, branch, i)
+            directScan = true
+            for (branch in 0..1) for (i in 0 until maxOf(p.scanGap, if (branch == 0) a.receiveIndex + 1 else 0)) found += AddressCodec.cardano(a.publicKey, branch, i)
         }
         val owned = found.distinct().filter { it in derived }; val capped = found.any { it !in derived }
         var ada = BigDecimal.ZERO; val tokens = mutableMapOf<String, BigDecimal>()
@@ -270,6 +315,7 @@ class ChainBalances(private val http: Http) {
             val fallback = runCatching { unit.drop(56).unhex().toString(Charsets.UTF_8) }.getOrDefault(unit.take(12))
             assets += token(a, unit, metadata?.optString("ticker")?.takeIf { it.isNotBlank() } ?: fallback, metadata?.optString("name")?.takeIf { it.isNotBlank() } ?: fallback, quantity.movePointLeft(decimals), decimals)
         }
-        return AccountSnapshot(assets, scanLimited = capped)
+        val highestUsed = if (directScan) -1 else found.mapNotNull { receivingIndices[it] }.maxOrNull() ?: -1
+        return AccountSnapshot(assets, scanLimited = capped, highestUsedReceiveIndex = highestUsed)
     }
 }

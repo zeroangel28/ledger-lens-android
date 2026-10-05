@@ -305,16 +305,20 @@ export async function sign(prepared, transport = new AndroidTransport()) {
   return { raw: transaction.to_hex(), txid: prepared.txHash };
 }
 export async function verifyAddress(account, transport = new AndroidTransport()) {
+  const index = account.receiveIndex ?? 0;
+  requireThat(Number.isInteger(index) && index >= 0 && index <= 899, 'Invalid receiving index');
+  requireThat(['BTC', 'ADA'].includes(account.chain) || index === 0, 'This chain uses a single account address');
   if (account.chain === 'ETH') return (await new Eth(transport).getAddress(account.path, true)).address;
   if (account.chain === 'TRON') return (await new Trx(transport).getAddress(account.path, true)).address;
   if (account.chain === 'BTC') {
     const device = new AppClient(transport), fingerprint = await device.getMasterFingerprint(), node = accountNode(account);
     const xpub = await device.getExtendedPubkey(false, paths(account.path)); requireThat(xpub === node.toBase58(), 'Different Ledger account');
-    return device.getWalletAddress(new WalletPolicy('wpkh(@0/**)', createKey(fingerprint, paths(account.path), xpub)), null, 0, 0, true);
+    return device.getWalletAddress(new WalletPolicy('wpkh(@0/**)', createKey(fingerprint, paths(account.path), xpub)), null, 0, index, true);
   }
   const device = new Ada(transport);
-  await device.showAddress({ network: { networkId: 1, protocolMagic: 764824073 }, address: { type: 0, params: { spendingPath: paths(account.path).concat([0, 0]), stakingPath: paths(account.path).concat([2, 0]) } } });
-  const result = await device.deriveAddress({ network: { networkId: 1, protocolMagic: 764824073 }, address: { type: 0, params: { spendingPath: paths(account.path).concat([0, 0]), stakingPath: paths(account.path).concat([2, 0]) } } });
+  const params = { spendingPath: paths(account.path).concat([0, index]), stakingPath: paths(account.path).concat([2, 0]) };
+  await device.showAddress({ network: { networkId: 1, protocolMagic: 764824073 }, address: { type: 0, params } });
+  const result = await device.deriveAddress({ network: { networkId: 1, protocolMagic: 764824073 }, address: { type: 0, params } });
   return C.Address.from_bytes(bytes(result.addressHex)).to_bech32();
 }
 globalThis.runLedgerOperation = async (id, operation, payload) => {

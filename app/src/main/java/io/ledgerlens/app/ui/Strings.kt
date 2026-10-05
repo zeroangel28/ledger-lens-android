@@ -2,6 +2,8 @@ package io.ledgerlens.app.ui
 
 class Strings(private val language: String) {
     fun explain(error: String): String = when {
+        error.contains("Unused receiving address gap reached") -> get("receiveGap")
+        error.contains("Receiving address scan limit reached") -> get("receiveLimit")
         error.contains("api.trongrid.io") && (error.contains("HTTP 429") || error.contains("HTTP 403") || error.contains("HTTP 401")) -> get("tronLimited") + "\n" + error
         error.contains("binance") -> get("binanceUnavailable") + "\n" + error
         else -> error
@@ -20,7 +22,16 @@ class Strings(private val language: String) {
             "pendingAccount" to listOf("此帳戶有待確認或送出狀態未知的交易。請先查詢狀態，再移除帳戶。", "此账户有待确认或发送状态未知的交易。请先查询状态，再移除账户。", "This account has a pending or uncertain transaction. Check its status before removing the account."),
             "receive" to listOf("接收", "接收", "Receive"),
             "receiveQr" to listOf("主網收款地址 QR 碼", "主网收款地址二维码", "Mainnet receiving address QR code"),
-            "receiveHint" to listOf("沿用此帳戶匯入的地址。請確認傳送方選擇相同主網與資產；建議先在 Ledger 核對地址。", "沿用此账户导入的地址。请确认发送方选择相同主网与资产；建议先在 Ledger 核对地址。", "Uses this account's imported address. The sender must select the same mainnet and asset. Verify the address on Ledger."),
+            "receiveHint" to listOf("地址屬於同一個 Ledger 帳戶，舊地址仍可收款。請確認主網與資產；建議先在 Ledger 核對目前地址。", "地址属于同一个 Ledger 账户，旧地址仍可收款。请确认主网与资产；建议先在 Ledger 核对当前地址。", "Addresses belong to the same Ledger account. Previous addresses remain valid. Check the mainnet and asset; verify the displayed address on Ledger."),
+            "newReceive" to listOf("產生新收款地址", "生成新收款地址", "Generate new receiving address"),
+            "receiveGap" to listOf("已有太多連續未使用的收款地址。請先使用已產生的地址收款，再更新持倉後重試。", "已有太多连续未使用的收款地址。请先使用已生成的地址收款，再更新持仓后重试。", "Too many consecutive unused receiving addresses. Receive funds at an existing address, refresh holdings, then retry."),
+            "receiveNumber" to listOf("收款地址", "收款地址", "Receiving address"),
+            "previousReceive" to listOf("上一個收款地址", "上一个收款地址", "Previous receiving address"),
+            "nextReceive" to listOf("下一個收款地址", "下一个收款地址", "Next receiving address"),
+            "btcNewReceiveHint" to listOf("從帳戶公鑰衍生，私鑰留在 Ledger。新增時查詢 BTC 紀錄並跳過已使用地址。", "从账户公钥派生，私钥留在 Ledger。新增时查询 BTC 记录并跳过已使用地址。", "Derived from the account public key; private keys stay on Ledger. New addresses skip those with Bitcoin transaction history."),
+            "adaNewReceiveHint" to listOf("從帳戶公鑰衍生下一個地址，不額外查詢 Cardano API；ADA 與 NIGHT 可使用同一地址。", "从账户公钥派生下一个地址，不额外查询 Cardano API；ADA 与 NIGHT 可使用同一地址。", "Derives the next address without additional Cardano API calls. ADA and NIGHT share the address."),
+            "singleReceiveHint" to listOf("ETH／TRON 每個帳戶使用同一地址；若要另一個地址，請連接 Ledger 並匯入新的帳戶序號。", "ETH／TRON 每个账户使用同一地址；如需另一个地址，请连接 Ledger 并导入新的账户序号。", "ETH/TRON use one address per account. For another address, connect Ledger and import a new account index."),
+            "receiveLimit" to listOf("已到收款地址掃描上限，請提高設定中的掃描上限後重試。", "已到收款地址扫描上限，请提高设置中的扫描上限后重试。", "Receiving address scan limit reached. Increase the scan limit in Settings and retry."),
             "copied" to listOf("已複製", "已复制", "Copied"),
             "share" to listOf("分享地址", "分享地址", "Share address"),
             "verifyAddress" to listOf("在 Ledger 核對地址", "在 Ledger 核对地址", "Verify address on Ledger"),

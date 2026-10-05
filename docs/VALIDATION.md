@@ -1,5 +1,15 @@
 # Validation record
 
+## v0.2.1 — 2026-10-05
+
+- `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35. **40 JVM tests passed; 12 offline SDK/cryptographic tests passed. Lint: 0 errors, 2 warnings.**
+- Receiving regressions cover published BIP84 index-1 derivation, unchanged source-account identity, persisted indices and migration, confirmed/pending history skipping, failed-provider handling, bounded unused gaps, issued-address balance discovery beyond an earlier empty gap, transfer UTXO discovery at a nonzero receive index, and Cardano public derivation/invalid indices.
+- Official Ledger SDK fixtures check BTC device address-display requests at index 3 and Cardano v7/v8 requests at index 2 with the original stake path. A different returned BTC address and invalid index are rejected. These are mocked transport responses, not physical-device evidence.
+- The Android instrumentation APK builds with new receive generation/navigation, large text/light theme and saved-state-restoration scenarios. **This version's Android runtime/UI tests, new screenshots, small-screen/landscape/reduced-motion inspection and Samsung installation were deferred at the user's request to leave ADB off.** Historical v0.2.0 emulator results below do not validate these changed screens.
+- Cardano address generation does not query holdings. Its 24-hour ordinary holdings limit remains intact. Generated indices are saved before publication; existing addresses and the source signing identity remain intact. ETH/TRON keep the imported account address and require importing another Ledger account for another address.
+- APK SHA-256: `75ae33933ebb5048e7f6145a79a461f51e55057c4dd60b537f0310a96c5c8545`. Signing certificate SHA-256: `d85236d6b2b4b426fd1929c514d3453240cf7062e6c7f9e5509a9c83e82a553a`, matching the earlier supplied builds.
+- **Physical Flex USB/BLE display at nonzero indices, real receiving/spending and production security review remain pending. No mainnet funds were sent.** See [receiving changes](V0.2.1.md) and [device checks](FLEX_TESTING.md).
+
 ## v0.2.0 — 2026-10-03
 
 - Debug build, JVM tests, Android Lint and instrumentation APK build succeeded. **33 JVM tests passed; 10 offline transaction/signature tests passed; 10 Android instrumentation tests passed** on the isolated API 36 emulator. Lint: **0 errors, 8 warnings**.

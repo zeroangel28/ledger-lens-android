@@ -53,7 +53,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     onPrices: () -> Unit = onRefresh,
     transfer: TransferUi = TransferUi(), onSend: (String) -> Unit = {}, onTransferEdit: (String, String, Boolean) -> Unit = { _, _, _ -> },
     onTransferClose: () -> Unit = {}, onTransferScan: () -> Unit = {}, onPrepare: () -> Unit = {}, onConfirm: () -> Unit = {},
-    onVerify: (String) -> Unit = {}, onStatus: () -> Unit = {}
+    onVerify: (String, Int) -> Unit = { _, _ -> }, onStatus: () -> Unit = {}, onGenerateReceive: (String) -> Unit = {}
 ) {
     val s = remember(state.preferences.language) { Strings(state.preferences.language) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -107,13 +107,13 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
         }
     } }
     if (!connect) {
-        state.accounts.find { it.id == receiving }?.let { a -> ReceiveScreen(a, s, state.busy, connection, { receiving = null }, { connect = true }, { onVerify(a.id) }, state.assets.find { it.id == receivingAsset }) }
+        state.accounts.find { it.id == receiving }?.let { a -> ReceiveScreen(a, s, state.busy, connection, { receiving = null }, { connect = true }, { onVerify(a.id, it) }, state.assets.find { it.id == receivingAsset }, { onGenerateReceive(a.id) }) }
         state.assets.find { it.id == transfer.assetId }?.let { asset -> state.accounts.find { it.id == asset.accountId }?.let { account ->
             SendScreen(transfer, asset, account, s, connection, onTransferClose, { connect = true }, onTransferEdit, onTransferScan, onPrepare, onConfirm)
         } }
     }
     remove?.let { a -> AlertDialog(onDismissRequest = { remove = null }, title = { Text(s["remove"]) }, text = { Text(a.name + "\n\n" + s["removeBody"]) }, confirmButton = { TextButton(onClick = { onRemove(a.id); remove = null }) { Text(s["remove"]) } }, dismissButton = { TextButton(onClick = { remove = null }) { Text(s["cancel"]) } }) }
-    state.message?.let { message -> AlertDialog(onDismissRequest = onDismiss, title = { Text("Ledger Lens") }, text = { Text(message) }, confirmButton = { TextButton(onClick = onDismiss) { Text(s["close"]) } }) }
+    state.message?.let { message -> AlertDialog(onDismissRequest = onDismiss, title = { Text("Ledger Lens") }, text = { Text(s.explain(message)) }, confirmButton = { TextButton(onClick = onDismiss) { Text(s["close"]) } }) }
 }
 
 @Composable private fun Overview(state: PortfolioState, s: Strings, preview: Boolean, onPreview: () -> Unit, onConnect: () -> Unit, onRefresh: () -> Unit, onFilter: () -> Unit, onAsset: (Asset) -> Unit, modifier: Modifier) {
