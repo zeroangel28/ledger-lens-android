@@ -1,5 +1,15 @@
 # Validation record
 
+## v0.3.0 — 2026-10-09
+
+- Built debug APK and Android instrumentation APK with JDK 17 / Gradle 8.14 / SDK 35. `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded: **49 JVM tests passed**, including 9 price-alert regressions. Lint: **0 errors, 9 warnings** (target/platform attribute and pinned dependency updates).
+- Alert tests cover opt-in defaults (+3%, optional +5%), exact decimal threshold comparison, persistent crossing/cooldown state, no repeat during a continuous rise, below-threshold rearming, one-hour separation, clock rollback, stale/future/invalid data, canonical positive holdings and duplicate-account filtering, one-hour minute-candle selection, and absent/reference-provider failures.
+- Live public Binance check returned a positive BTCUSDT Spot quote and the exact requested one-minute candle 60–61 minutes earlier, with matching open/close timestamps. No wallet address, account key, credential or chain query was involved. See `PUBLIC_API_V0.3.0.json`. This confirms the development machine's endpoint response, not the user's network or background notification delivery.
+- Android UI tests for opt-in controls, +5% selection, foreground-only choice, explicit test notification action, blocked-channel instructions and large-text light theme compile. **Samsung notification delivery, WorkManager wakeups, changed UI screenshots, small/large/tablet layouts, landscape/reduced-motion inspection and actual instrumentation execution remain pending.** ADB remains off as previously requested by the user; no phone install was performed.
+- Background work only reads the encrypted portfolio, selects canonical positive holdings and calls Binance. Alert settings/crossing records use a separate encrypted file; workers do not overwrite accounts, balances, keys or transaction status. Reference queries are independent of foreground price cadence and bounded to three concurrent reads. Errors never classify missing prices as a rise.
+- APK SHA-256: `fd43c6430799c7aa1a6aca10d0dcc8bfc72aebdeb02ccbdde56a9771b2bd23ed`. Certificate SHA-256: `d85236d6b2b4b426fd1929c514d3453240cf7062e6c7f9e5509a9c83e82a553a`, matching previous delivered builds.
+- Ledger transport, private-key policy, signing engine and mainnet transfer rules are unchanged from v0.2.1. Prior offline SDK tests remain historical evidence; physical Flex new-address/receive/send tests remain pending. No mainnet transactions were submitted. [Traditional Chinese test instructions](TESTING.zh-TW.md) cover free address checks, rejection and controlled small-value mainnet tests; testnet is not supported in this build.
+
 ## v0.2.1 — 2026-10-05
 
 - `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35. **40 JVM tests passed; 12 offline SDK/cryptographic tests passed. Lint: 0 errors, 2 warnings.**

@@ -4,6 +4,8 @@ import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import android.content.pm.PackageManager
+import android.content.Intent
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,6 +20,16 @@ import io.ledgerlens.app.model.recipientFromQr
 
 class MainActivity: ComponentActivity() {
     private val model: PortfolioViewModel by viewModels()
+    private var afterNotificationPermission: (() -> Unit)? = null
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val action = afterNotificationPermission; afterNotificationPermission = null
+        if (granted) action?.invoke() else model.reportMessage(Strings(model.state.value.preferences.language)["alertBlocked"])
+    }
+    private fun withNotifications(action: () -> Unit) {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            afterNotificationPermission = action; notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else action()
+    }
     private val qrScanner = registerForActivityResult(ScanContract()) { result ->
         result.contents?.let { raw ->
             val form = model.transfer.value
@@ -39,6 +51,7 @@ class MainActivity: ComponentActivity() {
             val devices by model.devices.collectAsStateWithLifecycle()
             val connection by model.connection.collectAsStateWithLifecycle()
             val transfer by model.transfer.collectAsStateWithLifecycle()
+            val priceAlerts by model.priceAlerts.collectAsStateWithLifecycle()
             LensTheme(state.preferences.theme) {
                 LensApp(state, devices, connection, model::refresh, model::connectUsb, {
                     val permissions = if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -46,7 +59,9 @@ class MainActivity: ComponentActivity() {
                 }, model::connectBle, model::disconnect, model::importAccount, model::updatePreferences, model::toggleHidden, model::removeAccount, model::dismissMessage, onPrices = model::refreshPrices,
                     transfer = transfer, onSend = model::openTransfer, onTransferEdit = model::editTransfer, onTransferClose = model::closeTransfer,
                     onTransferScan = { qrScanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(Strings(state.preferences.language)["scanQr"]).setBeepEnabled(false).setOrientationLocked(false)) },
-                    onPrepare = model::prepareTransfer, onConfirm = model::confirmTransfer, onVerify = model::verifyAddress, onStatus = model::refreshTransfers, onGenerateReceive = model::generateReceiveAddress)
+                    onPrepare = model::prepareTransfer, onConfirm = model::confirmTransfer, onVerify = model::verifyAddress, onStatus = model::refreshTransfers, onGenerateReceive = model::generateReceiveAddress,
+                    priceAlerts = priceAlerts, onPriceAlerts = { settings -> if (settings.enabled) withNotifications { model.updatePriceAlerts(settings) } else model.updatePriceAlerts(settings) },
+                    onTestNotification = { withNotifications(model::testPriceNotification) }, onNotificationSettings = { startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) })
             }
         }
     }

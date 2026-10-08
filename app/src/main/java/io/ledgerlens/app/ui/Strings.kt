@@ -2,6 +2,8 @@ package io.ledgerlens.app.ui
 
 class Strings(private val language: String) {
     fun explain(error: String): String = when {
+        error.contains("Price alert notifications blocked") -> get("alertBlocked")
+        error.contains("Price alert storage unavailable") -> get("alertStorageError")
         error.contains("Unused receiving address gap reached") -> get("receiveGap")
         error.contains("Receiving address scan limit reached") -> get("receiveLimit")
         error.contains("api.trongrid.io") && (error.contains("HTTP 429") || error.contains("HTTP 403") || error.contains("HTTP 401")) -> get("tronLimited") + "\n" + error
@@ -17,6 +19,23 @@ class Strings(private val language: String) {
             "overview" to listOf("資產", "资产", "Portfolio"),
             "accounts" to listOf("帳戶", "账户", "Accounts"),
             "settings" to listOf("設定", "设置", "Settings"),
+            "priceAlerts" to listOf("價格暴漲提醒", "价格暴涨提醒", "Price rise alerts"),
+            "alertEnable" to listOf("啟用上漲通知", "启用上涨通知", "Enable rise notifications"),
+            "alertScope" to listOf("只監控有餘額且能取得 Binance 現貨報價的持倉；隱藏資產仍會監控。", "只监控有余额且能获取 Binance 现货报价的持仓；隐藏资产仍会监控。", "Monitors positive holdings with Binance Spot prices, including hidden assets."),
+            "alertThreshold" to listOf("約一小時上漲門檻", "约一小时上涨门槛", "Approximate one-hour rise threshold"),
+            "alertBackground" to listOf("背景檢查", "后台检查", "Background checks"),
+            "alertBackgroundHint" to listOf("約每 15 分鐘；App 開啟時每 30 秒。省電、休眠或強制停止可能延遲／停止通知。", "约每 15 分钟；App 打开时每 30 秒。省电、休眠或强制停止可能延迟／停止通知。", "About every 15 minutes; every 30 seconds while open. Battery saving, sleep or force-stop can delay/stop alerts."),
+            "alertRule" to listOf("相較 60–61 分鐘前的 Binance 分鐘線開盤價。跨過門檻時通知；每幣至少間隔一小時，且須先回落再跨過。僅提醒上漲。", "与 60–61 分钟前的 Binance 分钟线开盘价比较。跨过门槛时通知；每币至少间隔一小时，并须先回落再跨过。仅提醒上涨。", "Compares with the Binance minute-open price 60–61 minutes ago. Notify on crossing; at least one hour between alerts per coin, with a fall below and another crossing. Rises only."),
+            "alertLastCheck" to listOf("最近有效檢查", "最近有效检查", "Last valid check"),
+            "alertTest" to listOf("發送測試通知", "发送测试通知", "Send test notification"),
+            "alertTestHint" to listOf("不需等行情、不查鏈上持倉，也不會發送交易。測試通知不是實際價格提醒。", "无需等待行情、不查询链上持仓，也不会发送交易。测试通知不是实际价格提醒。", "No market move, chain query or transaction required. A test notification is not a real price alert."),
+            "alertSystemSettings" to listOf("開啟系統通知設定", "打开系统通知设置", "Open system notification settings"),
+            "alertBlocked" to listOf("通知權限或提醒頻道已關閉。請在系統通知設定允許 Ledger Lens 的價格提醒。", "通知权限或提醒频道已关闭。请在系统通知设置允许 Ledger Lens 的价格提醒。", "Notification permission or the alert channel is blocked. Allow Ledger Lens price alerts in system settings."),
+            "alertStorageError" to listOf("無法開啟提醒加密資料；已停止提醒且不覆寫資料。", "无法打开提醒加密数据；已停止提醒且不覆盖数据。", "Encrypted alert data cannot be opened; alerts stopped without overwriting it."),
+            "alertTestTitle" to listOf("Ledger Lens 測試通知", "Ledger Lens 测试通知", "Ledger Lens test notification"),
+            "alertTestBody" to listOf("通知已正常送出。這是測試，不代表幣價暴漲或交易成功。", "通知已正常发出。这是测试，不代表币价暴涨或交易成功。", "Notification delivery works. This test does not indicate a price rise or a successful transaction."),
+            "alertRiseBody" to listOf("約一小時價格漲幅達門檻", "约一小时价格涨幅达到门槛", "Approximate one-hour rise reached the threshold"),
+            "alertPrivateBody" to listOf("持有資產達到價格提醒門檻，開啟 App 查看。", "持有资产达到价格提醒门槛，打开 App 查看。", "A held asset reached the price alert threshold. Open the app to view."),
             "watchOnly" to listOf("Ledger 硬體錢包", "Ledger 硬件钱包", "LEDGER HARDWARE WALLET"),
             "send" to listOf("傳送", "发送", "Send"),
             "pendingAccount" to listOf("此帳戶有待確認或送出狀態未知的交易。請先查詢狀態，再移除帳戶。", "此账户有待确认或发送状态未知的交易。请先查询状态，再移除账户。", "This account has a pending or uncertain transaction. Check its status before removing the account."),

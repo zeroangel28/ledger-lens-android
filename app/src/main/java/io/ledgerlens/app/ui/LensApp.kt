@@ -53,7 +53,8 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     onPrices: () -> Unit = onRefresh,
     transfer: TransferUi = TransferUi(), onSend: (String) -> Unit = {}, onTransferEdit: (String, String, Boolean) -> Unit = { _, _, _ -> },
     onTransferClose: () -> Unit = {}, onTransferScan: () -> Unit = {}, onPrepare: () -> Unit = {}, onConfirm: () -> Unit = {},
-    onVerify: (String, Int) -> Unit = { _, _ -> }, onStatus: () -> Unit = {}, onGenerateReceive: (String) -> Unit = {}
+    onVerify: (String, Int) -> Unit = { _, _ -> }, onStatus: () -> Unit = {}, onGenerateReceive: (String) -> Unit = {},
+    priceAlerts: PriceAlertStatus = PriceAlertStatus(), onPriceAlerts: (PriceAlertSettings) -> Unit = {}, onTestNotification: () -> Unit = {}, onNotificationSettings: () -> Unit = {}
 ) {
     val s = remember(state.preferences.language) { Strings(state.preferences.language) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -81,7 +82,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
             when (tab) {
                 0 -> Overview(shown, s, preview, { preview = !preview }, { connect = true }, onPrices, { tab = 2 }, { details = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth())
                 1 -> Accounts(state, s, { connect = true }, { remove = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth(), onRefresh, { receiving = it.id; receivingAsset = null }, onStatus)
-                else -> Settings(state.preferences, s, onPreferences, Modifier.widthIn(max = 840.dp).fillMaxWidth())
+                else -> Settings(state.preferences, s, onPreferences, Modifier.widthIn(max = 840.dp).fillMaxWidth(), priceAlerts, onPriceAlerts, onTestNotification, onNotificationSettings)
             }
         }
     }
@@ -242,7 +243,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     }
 }
 
-@Composable private fun Settings(p: Preferences, s: Strings, onChange: (Preferences) -> Unit, modifier: Modifier) {
+@Composable private fun Settings(p: Preferences, s: Strings, onChange: (Preferences) -> Unit, modifier: Modifier, alerts: PriceAlertStatus, onAlerts: (PriceAlertSettings) -> Unit, onTestNotification: () -> Unit, onNotificationSettings: () -> Unit) {
     var key by remember(p.blockfrostKey) { mutableStateOf(p.blockfrostKey) }
     var ethKey by remember(p.alchemyKey) { mutableStateOf(p.alchemyKey) }
     var tronKey by remember(p.tronGridKey) { mutableStateOf(p.tronGridKey) }
@@ -250,6 +251,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     var gap by remember(p.scanGap) { mutableStateOf(p.scanGap.toString()) }; var max by remember(p.scanMax) { mutableStateOf(p.scanMax.toString()) }
     LazyColumn(modifier, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item { Text(s["settings"], style = MaterialTheme.typography.headlineSmall) }
+        item { PriceAlertSettingsPanel(alerts, s, onAlerts, onTestNotification, onNotificationSettings) }
         item {
             Section(s["appearance"]) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("zh-TW" to "繁體中文", "zh-CN" to "简体中文", "en" to "English").forEach { (code, label) -> FilterChip(selected = p.language == code, onClick = { onChange(p.copy(language = code)) }, label = { Text(label) }) } }
@@ -288,7 +290,25 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                 Button(onClick = { onChange(p.copy(scanGap = gap.toInt(), scanMax = max.toInt())) }, enabled = valid) { Text(s["save"]) }
             }
         }
-        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.1.1", style = MaterialTheme.typography.labelMedium) } }
+        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.3.0", style = MaterialTheme.typography.labelMedium) } }
+    }
+}
+
+@Composable fun PriceAlertSettingsPanel(status: PriceAlertStatus, s: Strings, onChange: (PriceAlertSettings) -> Unit, onTest: () -> Unit, onSystemSettings: () -> Unit) {
+    val settings = status.settings
+    Section(s["priceAlerts"]) {
+        SwitchRow(s["alertEnable"], s["alertScope"], settings.enabled) { onChange(settings.copy(enabled = it)) }
+        Text(s["alertThreshold"], style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf(3, 5).forEach { percent ->
+            FilterChip(selected = settings.thresholdPercent == percent, onClick = { onChange(settings.copy(thresholdPercent = percent)) }, modifier = Modifier.heightIn(min = 48.dp), label = { Text("+$percent%") })
+        } }
+        SwitchRow(s["alertBackground"], s["alertBackgroundHint"], settings.background) { onChange(settings.copy(background = it)) }
+        Text(s["alertRule"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        Text(s["alertLastCheck"] + " · " + timestamp(status.lastCheckedAt), style = MaterialTheme.typography.bodySmall)
+        status.error?.let { Text(s.explain(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        OutlinedButton(onClick = onTest, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.NotificationsActive, null); Spacer(Modifier.width(8.dp)); Text(s["alertTest"]) }
+        Text(s["alertTestHint"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = onSystemSettings, modifier = Modifier.heightIn(min = 48.dp)) { Text(s["alertSystemSettings"]) }
     }
 }
 

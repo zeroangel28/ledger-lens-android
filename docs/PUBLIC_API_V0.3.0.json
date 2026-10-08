@@ -1,0 +1,11 @@
+{
+  "provider": "https://data-api.binance.vision",
+  "pair": "BTCUSDT",
+  "serverTime": 1791486553674,
+  "minuteOpen": 1791482940000,
+  "minuteClose": 1791482999999,
+  "positiveSpotQuote": true,
+  "positiveReference": true,
+  "result": "passed",
+  "walletQueries": 0
+}

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.ledgerlens.app.data.*
 import io.ledgerlens.app.ledger.*
 import io.ledgerlens.app.model.*
+import io.ledgerlens.app.alerts.PriceAlertController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,9 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
     private val mutableState = MutableStateFlow(initial)
     val state = mutableState.asStateFlow()
     private val saveMutex = Mutex()
+    private val alerts = PriceAlertController.get(app)
+    val priceAlerts = alerts.status
+    init { alerts.setPresentation(initial.preferences.language, initial.preferences.privacy); alerts.schedule() }
     private val quoteMutex = Mutex()
     private var foregroundJob: Job? = null
     private var transport: LedgerTransport? = null
@@ -39,6 +43,7 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
     private val mutableConnection = MutableStateFlow<String?>(null)
     val connection = mutableConnection.asStateFlow()
     fun setForeground(active: Boolean) {
+        alerts.setForeground(active)
         foregroundJob?.cancel(); foregroundJob = null
         if (active) foregroundJob = viewModelScope.launch {
             supervisorScope {
@@ -57,6 +62,9 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
             val batch = prices.prices(assets)
             mutableState.update { s -> s.copy(snapshots = s.snapshots.mapValues { (_, snapshot) -> snapshot.copy(assets = snapshot.assets.map { a -> a.copy(quote = batch.quotes[a.id] ?: a.quote?.copy(state = QuoteState.STALE)) }) }, priceError = batch.error, updatedAt = System.currentTimeMillis(), spotMarkets = prices.cache) }
             persist()
+            val alertSnapshot = mutableState.value
+            // Alert reference I/O is independent of quote cadence; this child stops with its caller.
+            CoroutineScope(currentCoroutineContext()).launch { alerts.check(alertSnapshot, batch.quotes) }
         } finally { mutableState.update { it.copy(priceBusy = false) }; quoteMutex.unlock() }
     }
     private suspend fun persist() { if (storageLocked) return; saveMutex.withLock { val snapshot = mutableState.value; withContext(Dispatchers.IO) { store.save(snapshot) } } }
@@ -117,7 +125,9 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
         mutableState.update { it.copy(spotMarkets = prices.cache) }
         persist()
     }
-    fun updatePreferences(p: Preferences) { mutableState.update { it.copy(preferences = p) }; saveAsync() }
+    fun updatePreferences(p: Preferences) { mutableState.update { it.copy(preferences = p) }; alerts.setPresentation(p.language, p.privacy); saveAsync() }
+    fun updatePriceAlerts(settings: PriceAlertSettings) { viewModelScope.launch { try { alerts.updateSettings(settings) } catch (e: Exception) { alerts.reportFailure(e.message ?: "Price alert check failed") } } }
+    fun testPriceNotification() { if (!alerts.testNotification(mutableState.value)) reportMessage(io.ledgerlens.app.ui.Strings(mutableState.value.preferences.language)["alertBlocked"]) }
     fun toggleHidden(id: String) { mutableState.update { s -> s.copy(snapshots = s.snapshots.mapValues { (_, snapshot) -> snapshot.copy(assets = snapshot.assets.map { if (it.id == id) it.copy(hidden = !it.hidden) else it }) }) }; saveAsync() }
     fun removeAccount(id: String) {
         if (mutableState.value.busy) return
@@ -253,5 +263,5 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
         } finally { statusMutex.unlock() }
     }
     private fun saveAsync() { viewModelScope.launch { try { persist() } catch (e: Exception) { mutableState.update { it.copy(message = e.message) } } } }
-    override fun onCleared() { foregroundJob?.cancel(); transport?.close(); engine.close(); super.onCleared() }
+    override fun onCleared() { alerts.setForeground(false); foregroundJob?.cancel(); transport?.close(); engine.close(); super.onCleared() }
 }

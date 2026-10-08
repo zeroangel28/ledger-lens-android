@@ -2,7 +2,7 @@
 
 Kotlin / Jetpack Compose Android companion for **Ledger Flex**. Import public keys over USB or Bluetooth, then view Bitcoin, Ethereum, TRON and Cardano mainnet holdings without keeping the device connected. Prices come exclusively from **Binance Spot**, denominated in USDT.
 
-**v0.2.1 adds new BTC and Cardano receiving addresses within an imported Ledger account.** Supported sending assets: Native SegWit BTC, ETH, TRX, ADA, Ethereum USDT, TRON USDT and Cardano NIGHT. Private wallet keys and recovery phrases never leave Ledger. Physical Flex signing and address display over USB and BLE still need device validation; the supplied APK is a debug test build. This independent project is not affiliated with Ledger or Binance.
+**v0.3.0 adds opt-in one-hour price-rise notifications.** BTC/Cardano support new receiving addresses within an imported Ledger account. Supported sending assets: Native SegWit BTC, ETH, TRX, ADA, Ethereum USDT, TRON USDT and Cardano NIGHT. Private wallet keys and recovery phrases never leave Ledger. Physical Flex signing and address display over USB and BLE still need device validation; the supplied APK is a debug test build. This independent project is not affiliated with Ledger or Binance.
 
 ## Features
 
@@ -14,6 +14,7 @@ Kotlin / Jetpack Compose Android companion for **Ledger Flex**. Import public ke
 - Explicit balance/price timestamps, incomplete-data notices and retained last-known data on network failures.
 - Routine Cardano holdings synchronize at most once per account every 24 hours, including failed attempts. Preparing a transfer and the first successful confirmation refresh the source account separately. A synchronization can require multiple HTTP requests.
 - Persistent 24-hour positive/negative Binance market cache; prices use batched requests every 30 seconds while foregrounded, plus manual refresh. Price updates remain independent of balance scans and transaction polling.
+- Opt-in rise alerts for positive held, canonically mapped Binance Spot assets; default +3%, selectable +5%. Foreground checks use existing fresh quotes; optional WorkManager background checks run about every 15 minutes. Includes a labelled test notification and system-notification settings shortcut.
 - Receive with QR, copy/share and optional on-device verification of the selected address. BTC and Cardano can derive new receiving addresses from the imported public key, with encrypted address-index persistence and previous/next address navigation. Original addresses remain valid. Send with paste/QR, exact amounts or maximum, automatic fee reserve, phone review, Ledger approval and local signature verification before automatic broadcast.
 - Persisted pending/unknown/confirmed transaction history; network uncertainty never automatically causes another submission. Accounts with unresolved transfers cannot be removed or used to send again.
 - Asset rows show their Binance Spot unit price. Unavailable balances/quotes display as unknown rather than zero; partial totals are labelled.
@@ -48,6 +49,14 @@ Ethereum and TRON keep their imported account address. For another address, conn
 Public market endpoints: `https://data-api.binance.vision/api/v3/exchangeInfo?symbol=...&showPermissionSets=false` and `/api/v3/ticker/price?symbols=...`. Only holdings-related, verified Spot pairs against USDT are queried. Both available and missing-market results are encrypted and cached for 24 hours across restarts. Binance `api.binance.com` is a fallback for connectivity/server failures; restrictions and rate limits are respected. A delisted pair can be isolated from a failed batch. USDT itself is the unit of account (1 USDT).
 
 Native coins are mapped by chain identity. Tokens use an explicit contract allowlist in `PriceMapping`, never an untrusted token ticker. The list includes Ethereum USDT/USDC/DAI/WBTC/LINK/MATIC, TRON USDT and Cardano Midnight NIGHT. Cardano NIGHT matches its full policy ID plus asset name (`0691b2fecca1ac4f53cb6dfb00b7013e561d1f34403b957cbb5af1fa4e49474854`) to Binance `NIGHTUSDT` Spot. A missing pair or unknown token identity is valued at **0** and marked as having no price, even if the token's ticker resembles a listed asset. Add reviewed contract mappings to expand coverage. A network error retains cached prices and marks them stale instead of pretending that live prices are zero. No futures, CoinGecko or other price feed is used.
+
+## Rise alerts and testing
+
+Settings → Price rise alerts → Send test notification verifies Android delivery without chain queries or transactions. Enable alerts to compare fresh Spot quotes with the minute-open price 60–61 minutes ago (`/api/v3/klines`, one 1m candle). This is an approximate one-hour return, not a 24-hour change or a rise from the hourly low. References cache for the current minute. Only positive, known holdings are monitored; hidden holdings still qualify, USDT as the unit of account does not. Duplicate accounts share a pair check.
+
+An initial qualifying check can notify. A continuously elevated price does not repeat; another alert needs an observed below-threshold reading and crossing, plus at least one hour since the prior notification. Cooldowns/settings use a separate encrypted file, saved before delivery. Background checks only read the portfolio and never query holdings or submit transactions. Provider failures/stale or absent references cannot trigger alerts. Android notification permission/channel and device power management control delivery; WorkManager periods are inexact and may be delayed. Force-stop can prevent checks until reopening. No constant foreground service is installed.
+
+The app currently supports **mainnet only**. Start with address/QR/device verification without moving funds, then use separately controlled small-value accounts for actual receive/send checks. Full Traditional Chinese instructions: [notifications, receiving addresses and transfers](docs/TESTING.zh-TW.md). Actual Flex and Samsung checks remain pending; local tests do not establish hardware approval or background delivery.
 
 ## Run
 

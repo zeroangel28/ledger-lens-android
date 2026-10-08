@@ -48,6 +48,16 @@ class BinancePrices(private val http: Http, cached: Map<String, SpotMarket> = em
         }
         throw failure ?: IllegalStateException("Binance Spot unavailable")
     }
+    suspend fun hourReference(pair: String, now: Long): HourReference {
+        require(pair.matches(Regex("[A-Z0-9]{1,32}USDT")))
+        val anchor = now / 60_000 * 60_000 - PRICE_ALERT_WINDOW_MS
+        val rows = JSONArray(readSpot("/api/v3/klines?symbol=$pair&interval=1m&startTime=$anchor&endTime=${anchor + 59_999}&limit=1"))
+        check(rows.length() == 1) { "One-hour Binance reference unavailable" }
+        val row = rows.getJSONArray(0)
+        check(row.getLong(0) == anchor && row.getLong(6) == anchor + 59_999) { "Unexpected Binance reference timestamp" }
+        val price = BigDecimal(row.getString(1)); require(price.signum() > 0)
+        return HourReference(price, anchor)
+    }
     suspend fun prices(assets: List<Asset>): PriceBatch = mutex.withLock {
         val now = clock()
         val bySymbol = mutableMapOf<String, Quote>()
