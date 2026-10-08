@@ -32,7 +32,9 @@ class PriceNotifications(private val context: Application) {
         val title = if (move == null) s["alertTestTitle"] else if (privacy) s["priceAlerts"] else move.pair.removeSuffix("USDT") + " +" + move.percent.setScale(2, RoundingMode.HALF_UP).toPlainString() + "%"
         val text = if (move == null) s["alertTestBody"] else if (privacy) s["alertPrivateBody"] else s["alertRiseBody"] + " · " + move.price.stripTrailingZeros().toPlainString() + " USDT"
         val intent = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val public = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_price_alert).setContentTitle(s["priceAlerts"]).setContentText(s["alertPrivateBody"]).build()
+        val public = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_price_alert)
+            .setContentTitle(s[if (move == null) "alertTestTitle" else "priceAlerts"])
+            .setContentText(s[if (move == null) "alertTestBody" else "alertPrivateBody"]).build()
         val notification = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_price_alert).setContentTitle(title).setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text)).setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(public).setContentIntent(intent).setAutoCancel(true).build()
         try { manager.notify(move?.pair?.hashCode() ?: 30001, notification) } catch (_: SecurityException) { return false }
