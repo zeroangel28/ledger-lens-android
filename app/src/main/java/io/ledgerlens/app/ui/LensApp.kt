@@ -290,7 +290,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                 Button(onClick = { onChange(p.copy(scanGap = gap.toInt(), scanMax = max.toInt())) }, enabled = valid) { Text(s["save"]) }
             }
         }
-        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.3.0", style = MaterialTheme.typography.labelMedium) } }
+        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.3.1", style = MaterialTheme.typography.labelMedium) } }
     }
 }
 
@@ -300,7 +300,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
         SwitchRow(s["alertEnable"], s["alertScope"], settings.enabled) { onChange(settings.copy(enabled = it)) }
         Text(s["alertThreshold"], style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf(3, 5).forEach { percent ->
-            FilterChip(selected = settings.thresholdPercent == percent, onClick = { onChange(settings.copy(thresholdPercent = percent)) }, modifier = Modifier.heightIn(min = 48.dp), label = { Text("+$percent%") })
+            FilterChip(selected = settings.thresholdPercent == percent, onClick = { onChange(settings.copy(thresholdPercent = percent)) }, modifier = Modifier.heightIn(min = 48.dp), label = { Text("±$percent%") })
         } }
         SwitchRow(s["alertBackground"], s["alertBackgroundHint"], settings.background) { onChange(settings.copy(background = it)) }
         Text(s["alertRule"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)

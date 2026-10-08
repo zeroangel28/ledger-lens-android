@@ -24,9 +24,9 @@ class PriceAlertUiTest {
             PriceAlertSettingsPanel(status, Strings("zh-TW"), { status = status.copy(settings = it) }, { tests++ }, {})
         } } }
         compose.runOnIdle { assertFalse(status.settings.enabled); assertEquals(3, status.settings.thresholdPercent); assertEquals(0, tests) }
-        compose.onNodeWithText("+5%").performScrollTo().performClick()
+        compose.onNodeWithText("±5%").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(5, status.settings.thresholdPercent); assertEquals(0, tests) }
-        compose.onNodeWithContentDescription("啟用上漲通知").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("啟用漲跌通知").performScrollTo().performClick()
         compose.runOnIdle { assertTrue(status.settings.enabled) }
         compose.onNodeWithContentDescription("背景檢查").performScrollTo().performClick()
         compose.runOnIdle { assertFalse(status.settings.background) }

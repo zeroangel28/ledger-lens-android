@@ -29,8 +29,8 @@ class PriceNotifications(private val context: Application) {
         val s = Strings(language)
         manager.createNotificationChannel(NotificationChannel(channel, s["priceAlerts"], NotificationManager.IMPORTANCE_HIGH))
         if (!available()) return false
-        val title = if (move == null) s["alertTestTitle"] else if (privacy) s["priceAlerts"] else move.pair.removeSuffix("USDT") + " +" + move.percent.setScale(2, RoundingMode.HALF_UP).toPlainString() + "%"
-        val text = if (move == null) s["alertTestBody"] else if (privacy) s["alertPrivateBody"] else s["alertRiseBody"] + " · " + move.price.stripTrailingZeros().toPlainString() + " USDT"
+        val title = if (move == null) s["alertTestTitle"] else if (privacy) s["priceAlerts"] else move.pair.removeSuffix("USDT") + " " + (if (move.percent.signum() > 0) "+" else "") + move.percent.setScale(2, RoundingMode.HALF_UP).toPlainString() + "%"
+        val text = if (move == null) s["alertTestBody"] else if (privacy) s["alertPrivateBody"] else s[if (move.percent.signum() < 0) "alertFallBody" else "alertRiseBody"] + " · " + move.price.stripTrailingZeros().toPlainString() + " USDT"
         val intent = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val public = Notification.Builder(context, channel).setSmallIcon(R.drawable.ic_price_alert)
             .setContentTitle(s[if (move == null) "alertTestTitle" else "priceAlerts"])

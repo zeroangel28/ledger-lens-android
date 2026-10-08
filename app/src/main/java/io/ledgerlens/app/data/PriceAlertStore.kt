@@ -41,7 +41,7 @@ class PriceAlertStore(context: Context) {
     companion object {
         fun encode(j: PriceAlertJournal): JSONObject {
             val s = j.status; val p = s.settings
-            val records = JSONObject(); j.latches.forEach { (pair, l) -> records.put(pair, JSONObject().put("threshold", l.threshold).put("above", l.above).put("sent", l.lastSentAt)) }
+            val records = JSONObject(); j.latches.forEach { (pair, l) -> records.put(pair, JSONObject().put("threshold", l.threshold).put("above", l.above).put("sent", l.lastSentAt).put("below", l.below).put("fallSent", l.lastFallSentAt)) }
             val markets = JSONObject(); j.markets.forEach { (pair, m) -> markets.put(pair, JSONObject().put("tradable", m.tradable).put("at", m.checkedAt)) }
             return JSONObject().put("schema", 1).put("enabled", p.enabled).put("threshold", p.thresholdPercent).put("background", p.background).put("checked", s.lastCheckedAt).put("error", s.error).put("latches", records).put("markets", markets)
         }
@@ -50,7 +50,7 @@ class PriceAlertStore(context: Context) {
             val settings = PriceAlertSettings(root.getBoolean("enabled"), root.getInt("threshold"), root.getBoolean("background"))
             val latches = root.getJSONObject("latches").let { all -> all.keys().asSequence().associateWith { key ->
                 require(key.matches(Regex("[A-Z0-9]{1,32}USDT")))
-                all.getJSONObject(key).let { PriceAlertLatch(it.getInt("threshold"), it.getBoolean("above"), it.getLong("sent")) }
+                all.getJSONObject(key).let { PriceAlertLatch(it.getInt("threshold"), it.getBoolean("above"), it.getLong("sent"), it.optBoolean("below", false), it.optLong("fallSent", 0)) }
             } }
             val markets = root.getJSONObject("markets").let { all -> all.keys().asSequence().associateWith { key -> all.getJSONObject(key).let { SpotMarket(it.getBoolean("tradable"), it.getLong("at")) } } }
             return PriceAlertJournal(PriceAlertStatus(settings, root.getLong("checked"), root.optString("error").takeIf { it.isNotEmpty() }), latches, markets)

@@ -9,7 +9,7 @@ data class PriceAlertSettings(val enabled: Boolean = false, val thresholdPercent
     init { require(thresholdPercent in listOf(3, 5)) }
 }
 data class HourReference(val price: BigDecimal, val at: Long)
-data class PriceAlertLatch(val threshold: Int, val above: Boolean, val lastSentAt: Long = 0)
+data class PriceAlertLatch(val threshold: Int, val above: Boolean, val lastSentAt: Long = 0, val below: Boolean = false, val lastFallSentAt: Long = 0)
 data class PriceMove(val pair: String, val price: BigDecimal, val reference: BigDecimal, val percent: BigDecimal, val at: Long)
 data class PriceAlertStatus(val settings: PriceAlertSettings = PriceAlertSettings(), val lastCheckedAt: Long = 0, val error: String? = null)
 data class AlertEvaluation(val latch: PriceAlertLatch, val move: PriceMove?)
@@ -25,10 +25,15 @@ fun evaluatePriceMove(pair: String, quote: Quote, reference: HourReference, thre
     require(quote.state == QuoteState.LIVE && quote.price.signum() > 0 && reference.price.signum() > 0)
     require(now - quote.at in 0..90_000 && now - reference.at in PRICE_ALERT_WINDOW_MS until PRICE_ALERT_WINDOW_MS + 60_000)
     val change = (quote.price - reference.price) * BigDecimal(100)
-    val above = change >= reference.price * BigDecimal(threshold)
-    val last = previous?.lastSentAt ?: 0
-    val crossed = above && (previous == null || !previous.above || previous.threshold != threshold)
-    val eligible = last == 0L || now >= last && now - last >= PRICE_ALERT_WINDOW_MS
-    val move = if (crossed && eligible) PriceMove(pair, quote.price, reference.price, change.divide(reference.price, 8, RoundingMode.HALF_UP), now) else null
-    return AlertEvaluation(PriceAlertLatch(threshold, above, move?.at ?: last), move)
+    val boundary = reference.price * BigDecimal(threshold)
+    val above = change >= boundary
+    val below = change <= -boundary
+    val lastRise = previous?.lastSentAt ?: 0
+    val lastFall = previous?.lastFallSentAt ?: 0
+    val changedThreshold = previous == null || previous.threshold != threshold
+    fun eligible(last: Long) = last == 0L || now >= last && now - last >= PRICE_ALERT_WINDOW_MS
+    val rise = above && (changedThreshold || previous?.above != true) && eligible(lastRise)
+    val fall = below && (changedThreshold || previous?.below != true) && eligible(lastFall)
+    val move = if (rise || fall) PriceMove(pair, quote.price, reference.price, change.divide(reference.price, 8, RoundingMode.HALF_UP), now) else null
+    return AlertEvaluation(PriceAlertLatch(threshold, above, if (rise) now else lastRise, below, if (fall) now else lastFall), move)
 }

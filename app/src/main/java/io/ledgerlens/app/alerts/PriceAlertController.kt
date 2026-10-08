@@ -32,7 +32,7 @@ class PriceAlertController private constructor(private val context: Application)
     suspend fun updateSettings(settings: PriceAlertSettings) = journalMutex.withLock {
         check(!locked) { "Price alert storage unavailable" }
         val old = journal.status.settings
-        val records = if (old.enabled != settings.enabled || old.thresholdPercent != settings.thresholdPercent) journal.latches.mapValues { (_, l) -> l.copy(above = false) } else journal.latches
+        val records = if (old.enabled != settings.enabled || old.thresholdPercent != settings.thresholdPercent) journal.latches.mapValues { (_, l) -> l.copy(above = false, below = false) } else journal.latches
         val updated = journal.copy(status = journal.status.copy(settings = settings, error = null), latches = records)
         withContext(Dispatchers.IO) { store.save(updated) }
         journal = updated; mutableStatus.value = updated.status; schedule()
@@ -85,7 +85,7 @@ class PriceAlertController private constructor(private val context: Application)
                     records[pair] = result.latch; result.move?.let { moves += it }
                 }
                 // Retain cooldowns across portfolio removal/reimport. Expired records can be pruned.
-                val kept = records.filter { (pair, latch) -> pair in activePairs || checkedAt < latch.lastSentAt || checkedAt - latch.lastSentAt < PRICE_ALERT_WINDOW_MS }
+                val kept = records.filter { (pair, latch) -> pair in activePairs || listOf(latch.lastSentAt, latch.lastFallSentAt).any { sent -> sent != 0L && (checkedAt < sent || checkedAt - sent < PRICE_ALERT_WINDOW_MS) } }
                 val updated = journal.copy(status = journal.status.copy(lastCheckedAt = if (checkedCount > 0) checkedAt else journal.status.lastCheckedAt, error = errors.distinct().takeIf { it.isNotEmpty() }?.joinToString("\n")), latches = kept, markets = markets + prices.cache)
                 withContext(Dispatchers.IO) { store.save(updated) }
                 journal = updated; mutableStatus.value = updated.status

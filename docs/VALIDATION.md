@@ -1,5 +1,13 @@
 # Validation record
 
+## v0.3.1 — 2026-10-09
+
+- `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35: **54 JVM tests passed**, including **14 price-alert tests**. Lint: **0 errors, 9 warnings** (existing platform and pinned dependency warnings).
+- Added exact −3% and −5% boundaries, no rounded false triggers, sustained-fall suppression, falling rearm/cooldown, independent rise/fall cooldowns during direction reversals, falling clock rollback, encrypted-journal round-trip of both timestamps, and migration from v0.3.0 without losing settings or rise history. Both directions evaluate the same quotes/reference candles and make no additional Binance requests.
+- Traditional Chinese, Simplified Chinese and English settings now describe both directions and show ±3% / ±5%. Fall notifications use a signed negative percentage and falling message; privacy and generic lock-screen behavior remain intact. Updated Android UI tests compile. **Samsung notification delivery, background wakeups, actual Android instrumentation and visual inspection remain pending; ADB remains off at the user's prior request. No phone install was performed.**
+- APK version: **0.3.1 / versionCode 7**. SHA-256: `4721587161f52ed4e2dca4c9dd2bfab9c88fd2aec9cacfc024ed156093ff9f03`. Certificate SHA-256: `d85236d6b2b4b426fd1929c514d3453240cf7062e6c7f9e5509a9c83e82a553a`, matching previous delivered builds for an in-place update.
+- Ledger transport, receiving derivation, signing and transfer behavior are unchanged. Physical Flex checks remain pending; no funds were moved. See [notification and transfer test instructions](TESTING.zh-TW.md).
+
 ## v0.3.0 — 2026-10-09
 
 - Built debug APK and Android instrumentation APK with JDK 17 / Gradle 8.14 / SDK 35. `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded: **49 JVM tests passed**, including 9 price-alert regressions. Lint: **0 errors, 9 warnings** (target/platform attribute and pinned dependency updates).
