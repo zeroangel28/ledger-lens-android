@@ -1,5 +1,14 @@
 # Validation record
 
+## v0.4.0 — 2026-10-09
+
+- `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35: **68 JVM tests passed**, including **14 portfolio-history tests**. Lint: **0 errors, 9 existing warnings**.
+- History regressions cover calendar month ends/leap years, complete UTC daily closes rather than candle opens, exclusion of unfinished/duplicate/out-of-range/zero-price candles, fixed current quantities across multiple/hidden accounts, exclusion of unknown balances, canonical token identities, USDT as the valuation unit, absent/pre-listing dates at zero without interpolation, invalid current quotes, persisted daily cache reuse across ranges/restarts, UTC-day refresh, clock rollback, provider errors retaining prior history, Retry-After backoff and cancellation without false cache success.
+- Live public Binance reads returned **183 complete UTC daily candles each for BTCUSDT and NIGHTUSDT**, covering 2026-04-09 through 2026-10-08. Positive closing prices and all open/close timestamps were validated. No wallet data was sent. See `PUBLIC_API_V0.4.0.json`; this validates the development machine's response, not the user's endpoint access.
+- Three new Android UI tests compile for default one-month/four-range selection, date buttons/data table, privacy semantics and large-text light-theme missing-data/error controls. The chart uses semantic theme colors, a zero baseline, date/value readouts, accessible slider state, 48dp controls, alternative daily data and no animated chart transitions. **Actual instrumentation, Samsung rendering, TalkBack, small/large/tablet/landscape layouts, contrast measurement and reduced-motion inspection remain pending. ADB remains off per the user's prior request; no phone was installed.**
+- APK version **0.4.0 / versionCode 8**. SHA-256: `538b1b13b0daa7a932b3487cad6ef84a77a04a3d7b819c77d70da38c984031ed`. Certificate SHA-256: `d85236d6b2b4b426fd1929c514d3453240cf7062e6c7f9e5509a9c83e82a553a`, matching earlier delivered builds.
+- Historical pricing never queries chain balances or Ledger. Chart ranges use cached public candles, while estimates use current quantities in memory. Missing prices are deliberately zero and identified; the chart is not actual historical holdings or profit/loss. Existing rise/fall alerts, Cardano routine holdings limits, receiving derivation and signing/transfers are unchanged. No funds were moved. [Traditional Chinese chart instructions](HISTORY.zh-TW.md).
+
 ## v0.3.1 — 2026-10-09
 
 - `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35: **54 JVM tests passed**, including **14 price-alert tests**. Lint: **0 errors, 9 warnings** (existing platform and pinned dependency warnings).

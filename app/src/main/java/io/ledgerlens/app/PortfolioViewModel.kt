@@ -28,6 +28,12 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
     private val saveMutex = Mutex()
     private val alerts = PriceAlertController.get(app)
     val priceAlerts = alerts.status
+    private val historyCache = HistoryCache(app)
+    private var historyRepository: HistoryRepository? = null
+    private val mutableHistory = MutableStateFlow(PortfolioHistory())
+    val history = mutableHistory.asStateFlow()
+    private var historyJob: Job? = null
+    private var requestedHistoryAssets: List<Asset> = emptyList()
     init { alerts.setPresentation(initial.preferences.language, initial.preferences.privacy); alerts.schedule() }
     private val quoteMutex = Mutex()
     private var foregroundJob: Job? = null
@@ -53,6 +59,28 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
         }
     }
     fun refreshPrices() { viewModelScope.launch { refreshQuotes() } }
+    fun refreshHistory() {
+        if (storageLocked) return
+        requestedHistoryAssets = mutableState.value.assets
+        if (historyJob?.isActive == true) return
+        historyJob = viewModelScope.launch {
+            mutableHistory.update { it.copy(loading = true) }
+            try {
+                val repository = historyRepository ?: withContext(Dispatchers.IO) {
+                    HistoryRepository(BinancePrices(http), historyCache.load(), save = { data -> withContext(Dispatchers.IO) { historyCache.save(data) } })
+                }.also { historyRepository = it }
+                do {
+                    val requested = requestedHistoryAssets
+                    val batch = repository.load(requested)
+                    val latest = mutableState.value.assets
+                    val points = withContext(Dispatchers.Default) { valuePortfolioHistory(latest, batch.histories, System.currentTimeMillis()) }
+                    mutableHistory.value = PortfolioHistory(points, loading = requestedHistoryAssets != requested, error = batch.error, unknownBalances = latest.count { !it.balanceKnown })
+                } while (requestedHistoryAssets != requested)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { mutableHistory.update { it.copy(error = e.message ?: "Historical prices unavailable") } }
+            finally { mutableHistory.update { it.copy(loading = false) } }
+        }
+    }
     private suspend fun refreshQuotes() {
         if (storageLocked || !quoteMutex.tryLock()) return
         try {

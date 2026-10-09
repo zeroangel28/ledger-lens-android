@@ -54,7 +54,8 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     transfer: TransferUi = TransferUi(), onSend: (String) -> Unit = {}, onTransferEdit: (String, String, Boolean) -> Unit = { _, _, _ -> },
     onTransferClose: () -> Unit = {}, onTransferScan: () -> Unit = {}, onPrepare: () -> Unit = {}, onConfirm: () -> Unit = {},
     onVerify: (String, Int) -> Unit = { _, _ -> }, onStatus: () -> Unit = {}, onGenerateReceive: (String) -> Unit = {},
-    priceAlerts: PriceAlertStatus = PriceAlertStatus(), onPriceAlerts: (PriceAlertSettings) -> Unit = {}, onTestNotification: () -> Unit = {}, onNotificationSettings: () -> Unit = {}
+    priceAlerts: PriceAlertStatus = PriceAlertStatus(), onPriceAlerts: (PriceAlertSettings) -> Unit = {}, onTestNotification: () -> Unit = {}, onNotificationSettings: () -> Unit = {},
+    history: PortfolioHistory = PortfolioHistory(), onHistory: () -> Unit = {}
 ) {
     val s = remember(state.preferences.language) { Strings(state.preferences.language) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -80,7 +81,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             when (tab) {
-                0 -> Overview(shown, s, preview, { preview = !preview }, { connect = true }, onPrices, { tab = 2 }, { details = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth())
+                0 -> Overview(shown, s, preview, { preview = !preview }, { connect = true }, onPrices, { tab = 2 }, { details = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth(), history, onHistory)
                 1 -> Accounts(state, s, { connect = true }, { remove = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth(), onRefresh, { receiving = it.id; receivingAsset = null }, onStatus)
                 else -> Settings(state.preferences, s, onPreferences, Modifier.widthIn(max = 840.dp).fillMaxWidth(), priceAlerts, onPriceAlerts, onTestNotification, onNotificationSettings)
             }
@@ -117,10 +118,11 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     state.message?.let { message -> AlertDialog(onDismissRequest = onDismiss, title = { Text("Ledger Lens") }, text = { Text(s.explain(message)) }, confirmButton = { TextButton(onClick = onDismiss) { Text(s["close"]) } }) }
 }
 
-@Composable private fun Overview(state: PortfolioState, s: Strings, preview: Boolean, onPreview: () -> Unit, onConnect: () -> Unit, onRefresh: () -> Unit, onFilter: () -> Unit, onAsset: (Asset) -> Unit, modifier: Modifier) {
+@Composable private fun Overview(state: PortfolioState, s: Strings, preview: Boolean, onPreview: () -> Unit, onConnect: () -> Unit, onRefresh: () -> Unit, onFilter: () -> Unit, onAsset: (Asset) -> Unit, modifier: Modifier, history: PortfolioHistory = PortfolioHistory(), onHistory: () -> Unit = {}) {
     var chain by rememberSaveable { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     LaunchedEffect(preview) { listState.scrollToItem(0) }
+    LaunchedEffect(preview, state.assets) { if (!preview) onHistory() }
     val assets = state.visible.filter { chain == null || it.chain.name == chain }
     LazyColumn(modifier, state = listState, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         if (preview) item { Notice(s["demoNotice"], Icons.Outlined.Info); TextButton(onClick = onPreview) { Text(s["exitDemo"]) } }
@@ -135,6 +137,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                 }
             }
         }
+        if (!preview && state.accounts.isNotEmpty()) item { HistoryChartCard(history, state.preferences.privacy, s, onHistory) }
         if (!preview && state.accounts.isNotEmpty()) item {
             FilledTonalButton(onClick = onRefresh, enabled = !state.priceBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text(s[if (state.priceBusy) "updating" else "refreshPrices"]) }
         }
@@ -290,7 +293,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                 Button(onClick = { onChange(p.copy(scanGap = gap.toInt(), scanMax = max.toInt())) }, enabled = valid) { Text(s["save"]) }
             }
         }
-        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.3.1", style = MaterialTheme.typography.labelMedium) } }
+        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.4.0", style = MaterialTheme.typography.labelMedium) } }
     }
 }
 

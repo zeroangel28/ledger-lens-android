@@ -1,0 +1,25 @@
+{
+  "serverTime": 1791542044695,
+  "startDateUTC": "2026-04-09",
+  "endDateExclusiveUTC": "2026-10-09",
+  "interval": "1d",
+  "markets": [
+    {
+      "pair": "BTCUSDT",
+      "completeDailyCandles": 183,
+      "firstOpenTime": 1775692800000,
+      "lastCloseTime": 1791503999999,
+      "missingDatesValuedAtZero": 0,
+      "allPricesPositive": true
+    },
+    {
+      "pair": "NIGHTUSDT",
+      "completeDailyCandles": 183,
+      "firstOpenTime": 1775692800000,
+      "lastCloseTime": 1791503999999,
+      "missingDatesValuedAtZero": 0,
+      "allPricesPositive": true
+    }
+  ],
+  "walletDataSent": false
+}

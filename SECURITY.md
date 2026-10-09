@@ -20,4 +20,6 @@ Opt-in price alerts have no Ledger capability and never initiate a transaction. 
 
 Physical Flex USB/BLE interoperability and device approval/rejection/disconnection flows still require hardware testing. Bluetooth pairing and Ledger firmware provide their own trust boundary; phone-side code cannot prove firmware authenticity. Review device-displayed addresses, amounts, network and token before approving an import or transaction. Never enter a recovery phrase into this app.
 
+Historical estimates share the reviewed canonical asset mapping and use decimal arithmetic. Daily candle ranges/timestamps/positive closes are validated; duplicate, incomplete or malformed candles fail without replacing prior cache entries. Missing prices are explicitly valued at zero and identified as incomplete data. Fixed-current-quantity estimates must not be presented as actual historic account balances or investment profit/loss. The disposable public-market cache has no signing capability and contains no keys, quantities or account identifiers.
+
 Report a vulnerability privately to the repository owner through their GitHub profile contact details. Do not publish credentials or personal account xpubs in an issue. There is no claim of a formal audit or production certification.

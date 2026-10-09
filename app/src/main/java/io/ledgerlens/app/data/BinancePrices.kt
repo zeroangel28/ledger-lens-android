@@ -58,6 +58,26 @@ class BinancePrices(private val http: Http, cached: Map<String, SpotMarket> = em
         val price = BigDecimal(row.getString(1)); require(price.signum() > 0)
         return HourReference(price, anchor)
     }
+    /** Complete UTC daily candles only; missing pre-listing days remain absent for zero valuation. */
+    suspend fun dailyCloses(pair: String, startDay: Long, endDay: Long): Map<Long, BigDecimal> {
+        require(pair.matches(Regex("[A-Z0-9]{1,32}USDT")) && endDay - startDay in 1..190)
+        val rows = try {
+            JSONArray(readSpot("/api/v3/klines?symbol=$pair&interval=1d&startTime=${startDay * HISTORY_DAY_MS}&endTime=${endDay * HISTORY_DAY_MS - 1}&limit=1000"))
+        } catch (e: ApiException) {
+            if (e.status == 400 && e.apiCode == -1121) return emptyMap() else throw e
+        }
+        require(rows.length() <= endDay - startDay)
+        val result = mutableMapOf<Long, BigDecimal>()
+        var previous = startDay - 1
+        for (i in 0 until rows.length()) {
+            val row = rows.getJSONArray(i)
+            val open = row.getLong(0); val day = open / HISTORY_DAY_MS
+            val close = BigDecimal(row.getString(4))
+            check(open == day * HISTORY_DAY_MS && day in startDay until endDay && day > previous && row.getLong(6) == open + HISTORY_DAY_MS - 1 && close.signum() > 0) { "Invalid Binance daily candle" }
+            result[day] = close; previous = day
+        }
+        return result
+    }
     suspend fun prices(assets: List<Asset>): PriceBatch = mutex.withLock {
         val now = clock()
         val bySymbol = mutableMapOf<String, Quote>()

@@ -52,6 +52,7 @@ class MainActivity: ComponentActivity() {
             val connection by model.connection.collectAsStateWithLifecycle()
             val transfer by model.transfer.collectAsStateWithLifecycle()
             val priceAlerts by model.priceAlerts.collectAsStateWithLifecycle()
+            val history by model.history.collectAsStateWithLifecycle()
             LensTheme(state.preferences.theme) {
                 LensApp(state, devices, connection, model::refresh, model::connectUsb, {
                     val permissions = if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -61,7 +62,8 @@ class MainActivity: ComponentActivity() {
                     onTransferScan = { qrScanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(Strings(state.preferences.language)["scanQr"]).setBeepEnabled(false).setOrientationLocked(false)) },
                     onPrepare = model::prepareTransfer, onConfirm = model::confirmTransfer, onVerify = model::verifyAddress, onStatus = model::refreshTransfers, onGenerateReceive = model::generateReceiveAddress,
                     priceAlerts = priceAlerts, onPriceAlerts = { settings -> if (settings.enabled) withNotifications { model.updatePriceAlerts(settings) } else model.updatePriceAlerts(settings) },
-                    onTestNotification = { withNotifications(model::testPriceNotification) }, onNotificationSettings = { startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) })
+                    onTestNotification = { withNotifications(model::testPriceNotification) }, onNotificationSettings = { startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) },
+                    history = history, onHistory = model::refreshHistory)
             }
         }
     }
