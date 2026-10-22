@@ -1,12 +1,19 @@
 package io.ledgerlens.app
 
 import android.app.Application
+import android.app.ActivityManager
+import android.os.Build
+import android.os.PowerManager
+import androidx.work.WorkManager
+import androidx.work.WorkInfo
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.ledgerlens.app.data.*
 import io.ledgerlens.app.ledger.*
 import io.ledgerlens.app.model.*
 import io.ledgerlens.app.alerts.PriceAlertController
+import io.ledgerlens.app.alerts.PriceAlertWorker
+import io.ledgerlens.app.alerts.BackgroundTestWorker
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,13 +35,39 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
     private val saveMutex = Mutex()
     private val alerts = PriceAlertController.get(app)
     val priceAlerts = alerts.status
+    private val mutableBackgroundHealth = MutableStateFlow(BackgroundHealth())
+    val backgroundHealth = mutableBackgroundHealth.asStateFlow()
     private val historyCache = HistoryCache(app)
     private var historyRepository: HistoryRepository? = null
     private val mutableHistory = MutableStateFlow(PortfolioHistory())
     val history = mutableHistory.asStateFlow()
     private var historyJob: Job? = null
     private var requestedHistoryAssets: List<Asset> = emptyList()
-    init { alerts.setPresentation(initial.preferences.language, initial.preferences.privacy); alerts.schedule() }
+    init {
+        alerts.setPresentation(initial.preferences.language, initial.preferences.privacy); alerts.schedule()
+        viewModelScope.launch {
+            WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(PriceAlertWorker.UNIQUE_NAME).collect { work ->
+                val current = work.firstOrNull { it.state == WorkInfo.State.RUNNING } ?: work.firstOrNull { !it.state.isFinished }
+                val label = when (current?.state) { WorkInfo.State.RUNNING -> "backgroundRunning"; WorkInfo.State.ENQUEUED -> "backgroundScheduled"; WorkInfo.State.BLOCKED -> "backgroundWaiting"; else -> "backgroundUnscheduled" }
+                mutableBackgroundHealth.update { it.copy(workState = label) }
+            }
+        }
+    }
+    fun refreshBackgroundHealth() {
+        val app = getApplication<Application>()
+        val optimized = runCatching { !app.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName) }.getOrNull()
+        val restricted = Build.VERSION.SDK_INT >= 28 && app.getSystemService(ActivityManager::class.java).isBackgroundRestricted
+        mutableBackgroundHealth.update { it.copy(batteryOptimized = optimized, restricted = restricted) }
+    }
+    fun scheduleBackgroundTest() {
+        if (!alerts.status.value.settings.let { it.enabled && it.background }) return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { BackgroundTestWorker.schedule(getApplication()).result.get(5, java.util.concurrent.TimeUnit.SECONDS) }
+                reportMessage(io.ledgerlens.app.ui.Strings(mutableState.value.preferences.language)["backgroundTestScheduled"])
+            } catch (e: CancellationException) { throw e } catch (e: Exception) { reportMessage(e.message ?: "Background test could not be scheduled") }
+        }
+    }
     private val quoteMutex = Mutex()
     private var foregroundJob: Job? = null
     private var transport: LedgerTransport? = null
@@ -131,16 +164,7 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
         for (account in before.accounts) {
             val old = mutableState.value.snapshots[account.id]
             val attemptedAt = System.currentTimeMillis()
-            if (account.chain == Chain.ADA && !cardanoSyncDue(old, attemptedAt)) continue
-            if (account.chain == Chain.ADA) {
-                // Persist before network access, so failure, cancellation and process death cannot reset the daily budget.
-                mutableState.update { s -> s.copy(snapshots = s.snapshots + (account.id to (old ?: AccountSnapshot(listOf(nativePlaceholder(account)), at = 0, complete = false)).copy(lastAttemptAt = attemptedAt))) }
-                persist()
-            }
-            val snapshot = try {
-                val fresh = withContext(Dispatchers.Default) { balances.fetch(account, before.preferences) }
-                mergeSnapshot(fresh, old).copy(lastAttemptAt = attemptedAt)
-            } catch (e: CancellationException) { throw e } catch (e: Exception) { (old ?: AccountSnapshot(listOf(nativePlaceholder(account)), at = 0)).copy(error = e.message ?: "Balance query failed", complete = false, lastAttemptAt = attemptedAt) }
+            val snapshot = refreshHoldingsSnapshot(account, old, attemptedAt) { withContext(Dispatchers.Default) { balances.fetch(it, before.preferences) } }
             mutableState.update { it.copy(snapshots = it.snapshots + (account.id to snapshot)) }
         }
         val initial = firstPrices.await()
@@ -291,5 +315,5 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
         } finally { statusMutex.unlock() }
     }
     private fun saveAsync() { viewModelScope.launch { try { persist() } catch (e: Exception) { mutableState.update { it.copy(message = e.message) } } } }
-    override fun onCleared() { alerts.setForeground(false); foregroundJob?.cancel(); transport?.close(); engine.close(); super.onCleared() }
+    override fun onCleared() { foregroundJob?.cancel(); transport?.close(); engine.close(); super.onCleared() }
 }

@@ -156,25 +156,23 @@ class DataRecoveryTests {
         assertTrue(unpriced.copy(snapshots = mapOf(a.id to AccountSnapshot(listOf(asset(Chain.TRON).copy(quote = Quote(BigDecimal.ZERO, QuoteState.MISSING, 1)))))).hasKnownValuation)
     }
 
-    @Test fun cardanoDailyAttemptSurvivesStorageAndIncludesFailures() {
+    @Test fun cardanoAttemptTimestampRemainsInformationalAfterDailyLockRemoval() {
         val a = account(Chain.ADA)
         val now = 1_790_000_000_000L
         val snapshot = AccountSnapshot(listOf(nativePlaceholder(a)), error = "offline", at = 0, complete = false, lastAttemptAt = now)
         val loaded = EncryptedStore.decode(EncryptedStore.encode(PortfolioState(listOf(a), mapOf(a.id to snapshot))))
         val restored = loaded.snapshots.getValue(a.id)
-        assertFalse(cardanoSyncDue(restored, now + CARDANO_SYNC_INTERVAL_MS - 1))
-        assertTrue(cardanoSyncDue(restored, now + CARDANO_SYNC_INTERVAL_MS))
-        assertTrue(cardanoSyncDue(null, now))
+        assertEquals(now, restored.lastAttemptAt)
         assertEquals(snapshot, restored)
     }
 
-    @Test fun upgradeUsesPreviousCardanoSyncTimeInsteadOfSpendingQuotaAgain() {
+    @Test fun previousCardanoTimestampIsPreservedDuringUpgrade() {
         val a = account(Chain.ADA)
         val now = 1_790_000_000_000L
         val state = PortfolioState(listOf(a), mapOf(a.id to AccountSnapshot(listOf(asset(Chain.ADA)), at = now)))
         val legacy = EncryptedStore.encode(state)
         legacy.getJSONObject("snapshots").getJSONObject(a.id).remove("lastAttemptAt")
-        assertFalse(cardanoSyncDue(EncryptedStore.decode(legacy).snapshots[a.id], now + 60_000))
+        assertEquals(now, EncryptedStore.decode(legacy).snapshots[a.id]!!.lastAttemptAt)
     }
 
     @Test fun longRetryAfterStopsRequestsAndMaintainsHostCooldown() = runBlocking {

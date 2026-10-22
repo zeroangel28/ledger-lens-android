@@ -44,4 +44,19 @@ class PriceAlertUiTest {
         compose.onNodeWithText("Open system notification settings").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, opened) }
     }
+    @Test fun backgroundFailureAndBatteryActionsRemainVisibleAfterForegroundSuccess() {
+        var battery = 0; var optimization = 0; var scheduled = 0; var immediate = 0
+        val status = PriceAlertStatus(PriceAlertSettings(true), lastCheckedAt = 1_790_000_100_000, lastBackgroundAttemptAt = 1_790_000_000_000,
+            backgroundResult = AlertCheckResult.NO_VALID_PRICES, backgroundError = "binance: HTTP 429")
+        compose.setContent { LensTheme("light") { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
+            PriceAlertSettingsPanel(status, Strings("en"), {}, { immediate++ }, {}, BackgroundHealth("backgroundScheduled", true, true), { battery++ }, { optimization++ }, { scheduled++ })
+        } } }
+        compose.onNodeWithText("Last valid background check · —").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Background prices or one-hour references unavailable").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Android currently restricts this app's background activity").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Open app battery / background settings").performScrollTo().performClick()
+        compose.onNodeWithText("Open system battery optimization settings").performScrollTo().performClick()
+        compose.onNodeWithText("Schedule a background test notification").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, battery); assertEquals(1, optimization); assertEquals(1, scheduled); assertEquals(0, immediate) }
+    }
 }

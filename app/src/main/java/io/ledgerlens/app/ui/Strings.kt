@@ -4,6 +4,7 @@ class Strings(private val language: String) {
     fun explain(error: String): String = when {
         error.contains("Price alert notifications blocked") -> get("alertBlocked")
         error.contains("Price alert storage unavailable") -> get("alertStorageError")
+        error.contains("Background test requires leaving the app") -> get("backgroundTestLeaveApp")
         error.contains("Unused receiving address gap reached") -> get("receiveGap")
         error.contains("Receiving address scan limit reached") -> get("receiveLimit")
         error.contains("api.trongrid.io") && (error.contains("HTTP 429") || error.contains("HTTP 403") || error.contains("HTTP 401")) -> get("tronLimited") + "\n" + error
@@ -50,6 +51,32 @@ class Strings(private val language: String) {
             "alertBackgroundHint" to listOf("約每 15 分鐘；App 開啟時每 30 秒。省電、休眠或強制停止可能延遲／停止通知。", "约每 15 分钟；App 打开时每 30 秒。省电、休眠或强制停止可能延迟／停止通知。", "About every 15 minutes; every 30 seconds while open. Battery saving, sleep or force-stop can delay/stop alerts."),
             "alertRule" to listOf("相較 60–61 分鐘前的 Binance 分鐘線開盤價。上漲或下跌達門檻時通知；每幣每方向至少間隔一小時，且須先回到該方向門檻內再跨過。漲跌分別計算，急漲後急跌仍可通知。", "与 60–61 分钟前的 Binance 分钟线开盘价比较。上涨或下跌达到门槛时通知；每币每方向至少间隔一小时，并须先回到该方向门槛内再跨过。涨跌分别计算，急涨后急跌仍可通知。", "Compares with the Binance minute-open price 60–61 minutes ago. Notify on a rise or fall reaching the threshold. Each coin and direction has a one-hour cooldown and must return inside that direction's threshold before crossing again. A fall can notify immediately after a rise."),
             "alertLastCheck" to listOf("最近有效檢查", "最近有效检查", "Last valid check"),
+            "backgroundHealth" to listOf("背景檢查狀態", "后台检查状态", "Background check status"),
+            "backgroundScheduled" to listOf("背景排程已登記，等待系統執行", "后台任务已登记，等待系统执行", "Background work scheduled; waiting for Android"),
+            "backgroundRunning" to listOf("背景工作正在執行", "后台任务正在运行", "Background work is running"),
+            "backgroundWaiting" to listOf("背景工作等待執行條件", "后台任务等待执行条件", "Background work is waiting for constraints"),
+            "backgroundUnscheduled" to listOf("尚未找到有效背景排程", "尚未找到有效后台任务", "No active background schedule found"),
+            "backgroundLastAttempt" to listOf("最近背景嘗試", "最近后台尝试", "Last background attempt"),
+            "backgroundLastSuccess" to listOf("最近背景有效檢查", "最近后台有效检查", "Last valid background check"),
+            "backgroundResultNONE" to listOf("尚無背景完成結果", "尚无后台完成结果", "No completed background result yet"),
+            "backgroundResultCHECKED" to listOf("背景已完成有效價格檢查", "后台已完成有效价格检查", "Background price check completed"),
+            "backgroundResultNO_HOLDINGS" to listOf("沒有可監控的正餘額持倉", "没有可监控的正余额持仓", "No eligible positive holdings to monitor"),
+            "backgroundResultNO_VALID_PRICES" to listOf("背景未取得有效價格／一小時參考價", "后台未获取有效价格或一小时参考价", "Background prices or one-hour references unavailable"),
+            "backgroundResultBLOCKED" to listOf("背景通知權限或頻道遭封鎖", "后台通知权限或频道被阻止", "Background notifications are blocked"),
+            "backgroundResultFAILED" to listOf("背景檢查失敗，請查看原因", "后台检查失败，请查看原因", "Background check failed; see the error"),
+            "backgroundResultSKIPPED" to listOf("已略過背景檢查：前景檢查中或設定已變更", "已跳过后台检查：前台检查中或设置已更改", "Background check skipped: foreground check or changed settings"),
+            "backgroundResultINTERRUPTED" to listOf("背景工作遭中止，等候下一次排程", "后台任务被中止，等待下次调度", "Background work interrupted; waiting for the next run"),
+            "backgroundOptimized" to listOf("仍受系統電池最佳化限制", "仍受系统电池优化限制", "System battery optimization is active"),
+            "backgroundUnrestricted" to listOf("已排除系統電池最佳化；仍需確認 Samsung 睡眠清單", "已排除系统电池优化；仍需确认 Samsung 休眠列表", "Excluded from system battery optimization; check Samsung sleeping-app lists too"),
+            "backgroundRestricted" to listOf("系統目前限制此 App 的背景活動", "系统目前限制此 App 的后台活动", "Android currently restricts this app's background activity"),
+            "backgroundBatteryHelp" to listOf("在 App 電池設定允許背景活動／選擇「無限制」。Samsung 請移出休眠與深度休眠清單，加入永不休眠。通知允許與背景活動是不同設定；設定完成後返回此頁查看狀態。", "在应用电池设置允许后台活动／选择「无限制」。Samsung 请移出休眠和深度休眠列表，加入永不休眠。通知权限与后台活动是不同设置；完成后返回此页查看状态。", "Allow background activity or choose Unrestricted in app battery settings. On Samsung, remove the app from Sleeping and Deep sleeping apps and add it to Never sleeping apps. Notification permission and background activity are separate settings; return here afterward."),
+            "backgroundAppSettings" to listOf("開啟 App 電池／背景設定", "打开应用电池／后台设置", "Open app battery / background settings"),
+            "backgroundBatterySettings" to listOf("開啟系統電池最佳化設定", "打开系统电池优化设置", "Open system battery optimization settings"),
+            "backgroundTest" to listOf("安排背景測試通知", "安排后台测试通知", "Schedule a background test notification"),
+            "backgroundTestHint" to listOf("按下後回到手機主畫面，至少 1 分鐘後由背景工作送出「測試通知」；系統省電可能延後。不查價格、不查持倉，不代表行情達門檻。", "按下后返回手机主屏幕，至少 1 分钟后由后台任务发送「测试通知」；系统省电可能延后。不查价格、不查持仓，不代表行情达到门槛。", "After scheduling, go to your phone's home screen. Background work sends a labelled test notification after at least one minute; battery saving may delay it. No prices or holdings are queried; this is not a market signal."),
+            "backgroundTestLast" to listOf("最近背景測試通知送出時間", "最近后台测试通知发送时间", "Last background test notification sent"),
+            "backgroundTestScheduled" to listOf("已安排背景測試。請回到手機主畫面，保持 App 在背景；至少 1 分鐘後查看通知。省電或休眠可能使測試延後。", "已安排后台测试。请回到手机主屏幕，保持应用在后台；至少 1 分钟后查看通知。省电或休眠可能使测试延后。", "Background test scheduled. Go to the phone's home screen and keep the app in the background. Check notifications after at least one minute; power management may delay it."),
+            "backgroundTestLeaveApp" to listOf("測試執行時 App 仍在前景，因此未送出背景測試。請重新安排，並回到手機主畫面。", "测试运行时应用仍在前台，因此没有发送后台测试。请重新安排并返回手机主屏幕。", "The app was still in the foreground, so no background test was sent. Schedule again, then go to the phone's home screen."),
             "alertTest" to listOf("發送測試通知", "发送测试通知", "Send test notification"),
             "alertTestHint" to listOf("不需等行情、不查鏈上持倉，也不會發送交易。測試通知不是實際價格提醒。", "无需等待行情、不查询链上持仓，也不会发送交易。测试通知不是实际价格提醒。", "No market move, chain query or transaction required. A test notification is not a real price alert."),
             "alertSystemSettings" to listOf("開啟系統通知設定", "打开系统通知设置", "Open system notification settings"),
@@ -112,10 +139,10 @@ class Strings(private val language: String) {
             "partialSync" to listOf("部分查詢未完成，已取得資料與上次持倉保留", "部分查询未完成，已取得数据与上次持仓保留", "Partial sync; available data and previous holdings retained"),
             "tronLimited" to listOf("TronGrid 拒絕或限制查詢。請在設定填入有效的 TronGrid API key，儲存後稍候再更新。", "TronGrid 拒绝或限制查询。请在设置填写有效的 TronGrid API key，保存后稍候再更新。", "TronGrid restricted this query. Add a valid TronGrid API key in Settings, save, then retry after the cooldown."),
             "binanceUnavailable" to listOf("無法取得 Binance 現貨報價；這不代表價格為零。請稍後更新並確認網路能連接 Binance。", "无法获取 Binance 现货报价；这不代表价格为零。请稍后更新并确认网络能连接 Binance。", "Binance Spot is unavailable; this does not mean the price is zero. Retry later and check network access to Binance."),
-            "cardanoDaily" to listOf("Cardano 日常持倉每帳戶 24 小時同步一次，失敗也計算；交易準備與首次確認後另行更新。", "Cardano 日常持仓每账户 24 小时同步一次，失败也计算；交易准备与首次确认后另行更新。", "Cardano routine holdings sync once per account per 24h, including failures. Transaction preparation and first confirmation refresh separately."),
-            "nextSync" to listOf("下次可同步持倉", "下次可同步持仓", "Next holdings sync available"),
+            "cardanoSync" to listOf("Cardano 已取消每日同步限制；按「更新持倉餘額」或「更新資產」即可重新查詢。API 限流時會保留舊資料並顯示原因。", "Cardano 已取消每日同步限制；点击「更新持仓余额」或「更新资产」即可重新查询。API 限流时会保留旧数据并显示原因。", "Cardano has no daily sync lock. Refresh holdings or Refresh assets requests balances again. Provider rate limits retain cached data and show an error."),
             "spot" to listOf("Binance 現貨 · USDT", "Binance 现货 · USDT", "Binance Spot · USDT"),
             "refresh" to listOf("更新資產", "更新资产", "Refresh assets"),
+            "refreshHoldings" to listOf("更新持倉餘額", "更新持仓余额", "Refresh holdings"),
             "refreshPrices" to listOf("更新價格 · 前景每 30 秒", "更新价格 · 前台每 30 秒", "Refresh prices · every 30s in foreground"),
             "updating" to listOf("正在更新…", "正在更新…", "Updating…"),
             "updated" to listOf("更新時間", "更新时间", "Updated"),

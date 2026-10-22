@@ -20,7 +20,7 @@ class RecoveryUiTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         File(context.cacheDir, name).outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
-    @Test fun pricesRemainVisibleWhenTronBalanceIsUnavailableAndCardanoShowsNextSync() {
+    @Test fun pricesRemainVisibleWhenTronBalanceIsUnavailableAndCardanoHasNoDailyLock() {
         val now = System.currentTimeMillis()
         val tron = Account("tron", "DEMO TRON", Chain.TRON, Chain.TRON.path(0), "DEMO", "DEMO ADDRESS", now)
         val ada = Account("ada", "DEMO Cardano", Chain.ADA, Chain.ADA.path(0), "DEMO", "DEMO ADDRESS", now)
@@ -37,10 +37,11 @@ class RecoveryUiTest {
         compose.onNodeWithText("帳戶").performClick()
         compose.onNodeWithText("TronGrid 拒絕或限制查詢。", substring = true).performScrollTo().assertIsDisplayed()
         capture("recovery-tron.png")
-        compose.onNodeWithText("下次可同步持倉", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Cardano 已取消每日同步限制", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("下次可同步持倉", substring = true).assertDoesNotExist()
         capture("recovery-cardano.png")
     }
-    @Test fun settingsSaveTronGridKeyAndExplainDailyCardanoBudget() {
+    @Test fun settingsSaveTronGridKeyAndExplainCardanoRefresh() {
         var saved = Preferences()
         compose.setContent {
             var state by remember { mutableStateOf(PortfolioState()) }
@@ -51,7 +52,7 @@ class RecoveryUiTest {
         compose.onNodeWithText("前往 TronGrid 建立 API key").performScrollTo().assertIsDisplayed()
         compose.onAllNodesWithText("儲存設定").onFirst().performScrollTo().performClick()
         compose.runOnIdle { assertEquals("test-data-service-key", saved.tronGridKey) }
-        compose.onNodeWithText("Cardano 日常持倉每帳戶 24 小時同步一次", substring = true).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Cardano 已取消每日同步限制", substring = true).performScrollTo().assertIsDisplayed()
         capture("recovery-settings.png")
     }
     @Test fun knownBalanceWithoutQuotesDoesNotShowZeroTotal() {
@@ -62,5 +63,14 @@ class RecoveryUiTest {
         compose.onNodeWithText("—").assertIsDisplayed()
         compose.onNodeWithText("0.00").assertDoesNotExist()
         compose.onNodeWithText("單價（USDT） · —").performScrollTo().assertIsDisplayed()
+    }
+    @Test fun holdingsButtonRefreshesAgainWithoutConfusingItWithPrices() {
+        val account = Account("ada", "Fixture ADA", Chain.ADA, Chain.ADA.path(0), "public", "public address")
+        val state = PortfolioState(listOf(account), mapOf(account.id to AccountSnapshot(listOf(nativePlaceholder(account)))))
+        var balances = 0; var prices = 0
+        compose.setContent { LensTheme("light") { LensApp(state, emptyList(), null, { balances++ }, {}, {}, {}, {}, { _, _, _ -> }, {}, {}, {}, {}, onPrices = { prices++ }) } }
+        compose.onNodeWithText("更新持倉餘額").performScrollTo().performClick().performClick()
+        compose.onNodeWithText("更新價格 · 前景每 30 秒").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(2, balances); assertEquals(1, prices) }
     }
 }

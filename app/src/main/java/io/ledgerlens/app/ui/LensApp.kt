@@ -55,7 +55,8 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     onTransferClose: () -> Unit = {}, onTransferScan: () -> Unit = {}, onPrepare: () -> Unit = {}, onConfirm: () -> Unit = {},
     onVerify: (String, Int) -> Unit = { _, _ -> }, onStatus: () -> Unit = {}, onGenerateReceive: (String) -> Unit = {},
     priceAlerts: PriceAlertStatus = PriceAlertStatus(), onPriceAlerts: (PriceAlertSettings) -> Unit = {}, onTestNotification: () -> Unit = {}, onNotificationSettings: () -> Unit = {},
-    history: PortfolioHistory = PortfolioHistory(), onHistory: () -> Unit = {}
+    history: PortfolioHistory = PortfolioHistory(), onHistory: () -> Unit = {}, backgroundHealth: BackgroundHealth = BackgroundHealth(),
+    onBatterySettings: () -> Unit = {}, onBatteryOptimizationSettings: () -> Unit = {}, onBackgroundTest: () -> Unit = {}
 ) {
     val s = remember(state.preferences.language) { Strings(state.preferences.language) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -81,9 +82,9 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             when (tab) {
-                0 -> Overview(shown, s, preview, { preview = !preview }, { connect = true }, onPrices, { tab = 2 }, { details = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth(), history, onHistory)
+                0 -> Overview(shown, s, preview, { preview = !preview }, { connect = true }, onPrices, { tab = 2 }, { details = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth(), history, onHistory, onRefresh)
                 1 -> Accounts(state, s, { connect = true }, { remove = it }, Modifier.widthIn(max = 840.dp).fillMaxWidth(), onRefresh, { receiving = it.id; receivingAsset = null }, onStatus)
-                else -> Settings(state.preferences, s, onPreferences, Modifier.widthIn(max = 840.dp).fillMaxWidth(), priceAlerts, onPriceAlerts, onTestNotification, onNotificationSettings)
+                else -> Settings(state.preferences, s, onPreferences, Modifier.widthIn(max = 840.dp).fillMaxWidth(), priceAlerts, onPriceAlerts, onTestNotification, onNotificationSettings, backgroundHealth, onBatterySettings, onBatteryOptimizationSettings, onBackgroundTest)
             }
         }
     }
@@ -118,7 +119,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     state.message?.let { message -> AlertDialog(onDismissRequest = onDismiss, title = { Text("Ledger Lens") }, text = { Text(s.explain(message)) }, confirmButton = { TextButton(onClick = onDismiss) { Text(s["close"]) } }) }
 }
 
-@Composable private fun Overview(state: PortfolioState, s: Strings, preview: Boolean, onPreview: () -> Unit, onConnect: () -> Unit, onRefresh: () -> Unit, onFilter: () -> Unit, onAsset: (Asset) -> Unit, modifier: Modifier, history: PortfolioHistory = PortfolioHistory(), onHistory: () -> Unit = {}) {
+@Composable private fun Overview(state: PortfolioState, s: Strings, preview: Boolean, onPreview: () -> Unit, onConnect: () -> Unit, onRefresh: () -> Unit, onFilter: () -> Unit, onAsset: (Asset) -> Unit, modifier: Modifier, history: PortfolioHistory = PortfolioHistory(), onHistory: () -> Unit = {}, onHoldings: () -> Unit = {}) {
     var chain by rememberSaveable { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     LaunchedEffect(preview) { listState.scrollToItem(0) }
@@ -140,6 +141,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
         if (!preview && state.accounts.isNotEmpty()) item { HistoryChartCard(history, state.preferences.privacy, s, onHistory) }
         if (!preview && state.accounts.isNotEmpty()) item {
             FilledTonalButton(onClick = onRefresh, enabled = !state.priceBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.Refresh, null); Spacer(Modifier.width(8.dp)); Text(s[if (state.priceBusy) "updating" else "refreshPrices"]) }
+            OutlinedButton(onClick = onHoldings, enabled = !state.busy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 52.dp)) { Text(s["refreshHoldings"]) }
         }
         if (state.priceError != null) item { Notice(s["priceError"] + "\n" + s.explain(state.priceError), Icons.Outlined.CloudOff) }
         if (!state.valuationComplete) item { Notice(s["partial"], Icons.Outlined.Info) }
@@ -206,8 +208,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                     state.snapshots[a.id]?.warning?.let { Notice(s["partialSync"] + "\n" + s.explain(it), Icons.Outlined.Info) }
                     if (state.snapshots[a.id]?.scanLimited == true) Notice(s["scanLimited"], Icons.Outlined.Info)
                     if (a.chain == Chain.ADA) {
-                        Text(s["cardanoDaily"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        state.snapshots[a.id]?.lastAttemptAt?.takeIf { it > 0 }?.let { Text(s["nextSync"] + " · " + timestamp(it + CARDANO_SYNC_INTERVAL_MS), style = MaterialTheme.typography.bodySmall) }
+                        Text(s["cardanoSync"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         TextButton(onClick = { onReceive(a) }) { Icon(Icons.Outlined.QrCode, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(s["receive"]) }
@@ -246,7 +247,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     }
 }
 
-@Composable private fun Settings(p: Preferences, s: Strings, onChange: (Preferences) -> Unit, modifier: Modifier, alerts: PriceAlertStatus, onAlerts: (PriceAlertSettings) -> Unit, onTestNotification: () -> Unit, onNotificationSettings: () -> Unit) {
+@Composable private fun Settings(p: Preferences, s: Strings, onChange: (Preferences) -> Unit, modifier: Modifier, alerts: PriceAlertStatus, onAlerts: (PriceAlertSettings) -> Unit, onTestNotification: () -> Unit, onNotificationSettings: () -> Unit, health: BackgroundHealth, onBattery: () -> Unit, onOptimization: () -> Unit, onBackgroundTest: () -> Unit) {
     var key by remember(p.blockfrostKey) { mutableStateOf(p.blockfrostKey) }
     var ethKey by remember(p.alchemyKey) { mutableStateOf(p.alchemyKey) }
     var tronKey by remember(p.tronGridKey) { mutableStateOf(p.tronGridKey) }
@@ -254,7 +255,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
     var gap by remember(p.scanGap) { mutableStateOf(p.scanGap.toString()) }; var max by remember(p.scanMax) { mutableStateOf(p.scanMax.toString()) }
     LazyColumn(modifier, contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item { Text(s["settings"], style = MaterialTheme.typography.headlineSmall) }
-        item { PriceAlertSettingsPanel(alerts, s, onAlerts, onTestNotification, onNotificationSettings) }
+        item { PriceAlertSettingsPanel(alerts, s, onAlerts, onTestNotification, onNotificationSettings, health, onBattery, onOptimization, onBackgroundTest) }
         item {
             Section(s["appearance"]) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { listOf("zh-TW" to "繁體中文", "zh-CN" to "简体中文", "en" to "English").forEach { (code, label) -> FilterChip(selected = p.language == code, onClick = { onChange(p.copy(language = code)) }, label = { Text(label) }) } }
@@ -274,7 +275,7 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                 Text(s["dataHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(value = key, onValueChange = { key = it.trim() }, label = { Text(s["cardanoKey"]) }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
                 Text(s["cardanoKeyHint"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(s["cardanoDaily"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(s["cardanoSync"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(s["keyHint"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(value = ethKey, onValueChange = { ethKey = it.trim() }, label = { Text(s["ethKey"]) }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
                 Text(s["ethKeyHint"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -293,11 +294,11 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
                 Button(onClick = { onChange(p.copy(scanGap = gap.toInt(), scanMax = max.toInt())) }, enabled = valid) { Text(s["save"]) }
             }
         }
-        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.4.0", style = MaterialTheme.typography.labelMedium) } }
+        item { Section(s["security"]) { Text(s["securityHint"], style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text("Ledger Lens · v0.4.1", style = MaterialTheme.typography.labelMedium) } }
     }
 }
 
-@Composable fun PriceAlertSettingsPanel(status: PriceAlertStatus, s: Strings, onChange: (PriceAlertSettings) -> Unit, onTest: () -> Unit, onSystemSettings: () -> Unit) {
+@Composable fun PriceAlertSettingsPanel(status: PriceAlertStatus, s: Strings, onChange: (PriceAlertSettings) -> Unit, onTest: () -> Unit, onSystemSettings: () -> Unit, health: BackgroundHealth = BackgroundHealth(), onBattery: () -> Unit = {}, onOptimization: () -> Unit = {}, onBackgroundTest: () -> Unit = {}) {
     val settings = status.settings
     Section(s["priceAlerts"]) {
         SwitchRow(s["alertEnable"], s["alertScope"], settings.enabled) { onChange(settings.copy(enabled = it)) }
@@ -308,6 +309,24 @@ private fun timestamp(at: Long?) = if (at == null || at == 0L) "—" else Simple
         SwitchRow(s["alertBackground"], s["alertBackgroundHint"], settings.background) { onChange(settings.copy(background = it)) }
         Text(s["alertRule"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         Text(s["alertLastCheck"] + " · " + timestamp(status.lastCheckedAt), style = MaterialTheme.typography.bodySmall)
+        if (settings.enabled && settings.background) {
+            HorizontalDivider()
+            Text(s["backgroundHealth"], style = MaterialTheme.typography.titleSmall)
+            Text(s[health.workState], style = MaterialTheme.typography.bodyMedium)
+            Text(s["backgroundLastAttempt"] + " · " + timestamp(status.lastBackgroundAttemptAt), style = MaterialTheme.typography.bodySmall)
+            Text(s["backgroundLastSuccess"] + " · " + timestamp(status.lastBackgroundCheckAt), style = MaterialTheme.typography.bodySmall)
+            Text(s["backgroundResult" + (status.backgroundResult?.name ?: "NONE")], style = MaterialTheme.typography.bodySmall)
+            status.backgroundError?.let { Text(s.explain(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            health.batteryOptimized?.let { Text(s[if (it) "backgroundOptimized" else "backgroundUnrestricted"], style = MaterialTheme.typography.bodySmall) }
+            if (health.restricted) Text(s["backgroundRestricted"], color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(s["backgroundBatteryHelp"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = onBattery, modifier = Modifier.heightIn(min = 48.dp)) { Text(s["backgroundAppSettings"]) }
+            TextButton(onClick = onOptimization, modifier = Modifier.heightIn(min = 48.dp)) { Text(s["backgroundBatterySettings"]) }
+            OutlinedButton(onClick = onBackgroundTest, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(s["backgroundTest"]) }
+            Text(s["backgroundTestHint"], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(s["backgroundTestLast"] + " · " + timestamp(status.lastBackgroundTestAt), style = MaterialTheme.typography.bodySmall)
+            status.backgroundTestError?.let { Text(s.explain(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
         status.error?.let { Text(s.explain(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
         OutlinedButton(onClick = onTest, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Icon(Icons.Outlined.NotificationsActive, null); Spacer(Modifier.width(8.dp)); Text(s["alertTest"]) }
         Text(s["alertTestHint"], color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)

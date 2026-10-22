@@ -23,8 +23,6 @@ data class Asset(
 }
 data class Preferences(val language: String = "zh-TW", val theme: String = "system", val hideZeroBalance: Boolean = false, val hideZeroValue: Boolean = false, val revealHidden: Boolean = false, val privacy: Boolean = false, val scanGap: Int = 20, val scanMax: Int = 200, val blockfrostKey: String = "", val alchemyKey: String = "", val tronGridKey: String = "")
 data class AccountSnapshot(val assets: List<Asset>, val error: String? = null, val at: Long = System.currentTimeMillis(), val scanLimited: Boolean = false, val warning: String? = null, val complete: Boolean = true, val lastAttemptAt: Long = 0, val highestUsedReceiveIndex: Int = -1)
-const val CARDANO_SYNC_INTERVAL_MS = 24L * 60 * 60 * 1000
-fun cardanoSyncDue(snapshot: AccountSnapshot?, now: Long): Boolean = snapshot == null || snapshot.lastAttemptAt == 0L || now - snapshot.lastAttemptAt >= CARDANO_SYNC_INTERVAL_MS
 data class PortfolioState(val accounts: List<Account> = emptyList(), val snapshots: Map<String, AccountSnapshot> = emptyMap(), val preferences: Preferences = Preferences(), val busy: Boolean = false, val message: String? = null, val priceError: String? = null, val updatedAt: Long? = null, val spotMarkets: Map<String, SpotMarket> = emptyMap(), val priceBusy: Boolean = false, val transfers: List<TransferRecord> = emptyList()) {
     val assets get() = accounts.flatMap { snapshots[it.id]?.assets.orEmpty() }
     val total get() = assets.fold(BigDecimal.ZERO) { sum, a -> sum + a.value }

@@ -2,7 +2,7 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 android {
     namespace = "io.ledgerlens.app"
     compileSdk = 35
-    defaultConfig { applicationId = "io.ledgerlens.app"; minSdk = 26; targetSdk = 35; versionCode = 8; versionName = "0.4.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+    defaultConfig { applicationId = "io.ledgerlens.app"; minSdk = 26; targetSdk = 35; versionCode = 9; versionName = "0.4.1"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
     buildFeatures { compose = true; buildConfig = false }
     packaging { resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -32,5 +32,6 @@ dependencies {
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.04.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.work:work-testing:2.10.5")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

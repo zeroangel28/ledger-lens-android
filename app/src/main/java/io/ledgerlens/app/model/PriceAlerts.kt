@@ -11,7 +11,20 @@ data class PriceAlertSettings(val enabled: Boolean = false, val thresholdPercent
 data class HourReference(val price: BigDecimal, val at: Long)
 data class PriceAlertLatch(val threshold: Int, val above: Boolean, val lastSentAt: Long = 0, val below: Boolean = false, val lastFallSentAt: Long = 0)
 data class PriceMove(val pair: String, val price: BigDecimal, val reference: BigDecimal, val percent: BigDecimal, val at: Long)
-data class PriceAlertStatus(val settings: PriceAlertSettings = PriceAlertSettings(), val lastCheckedAt: Long = 0, val error: String? = null)
+enum class AlertCheckResult { CHECKED, NO_HOLDINGS, NO_VALID_PRICES, BLOCKED, FAILED, SKIPPED, INTERRUPTED }
+data class PriceAlertStatus(
+    val settings: PriceAlertSettings = PriceAlertSettings(), val lastCheckedAt: Long = 0, val error: String? = null,
+    val lastBackgroundAttemptAt: Long = 0, val lastBackgroundCheckAt: Long = 0,
+    val backgroundResult: AlertCheckResult? = null, val backgroundError: String? = null,
+    val lastBackgroundTestAt: Long = 0, val backgroundTestError: String? = null
+)
+data class BackgroundHealth(val workState: String = "backgroundUnscheduled", val batteryOptimized: Boolean? = null, val restricted: Boolean = false)
+
+/** Foreground updates must never replace the last actual background success or its error. */
+fun PriceAlertStatus.backgroundFinished(result: AlertCheckResult, now: Long, failure: String? = null) = copy(
+    lastBackgroundCheckAt = if (result == AlertCheckResult.CHECKED) now else lastBackgroundCheckAt,
+    backgroundResult = result, backgroundError = failure
+)
 data class AlertEvaluation(val latch: PriceAlertLatch, val move: PriceMove?)
 
 /** Holding identity and quantity select pairs; hidden assets still belong to the portfolio. */

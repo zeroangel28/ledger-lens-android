@@ -1,5 +1,14 @@
 # Validation record
 
+## v0.4.1 — 2026-10-23
+
+- `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35: **75 JVM tests passed**. Lint: **0 errors, 11 warnings** (platform/dependency updates and a URI KTX suggestion).
+- Seven new regressions cover repeated Cardano refreshes within one minute, retry after failure/future informational timestamps, preserving prior balances on errors, cancellation, independent background success/error metadata, outcome-specific success timestamps and migration of prior alert files without inventing background history. The old daily lock and countdown were removed; timestamps remain informational and provider Retry-After handling remains intact.
+- Background workers initialize from Application startup without a ViewModel, update unique periodic work without resetting enqueue time, and receive a unique delayed follow-up on leaving the foreground. The UI displays actual background attempts/successes/errors independently from foreground refreshes, WorkManager state and local Android battery restriction status. System settings are opened only by user action. A labelled scheduled background test performs no API calls and cannot count as a real market check.
+- Added emulator-only Worker tests for execution without an Activity, foreground skips, labelled diagnostic delivery, rejecting foreground diagnostic delivery and schedule constraints. Updated UI tests cover separate background failures/battery actions and separate holdings/price refresh buttons. A dedicated API 35 GitHub Actions emulator job runs these and related alert/history/recovery screens; its result is recorded below after completion. **The local Windows emulator could not access hardware acceleration; physical Samsung Doze/sleeping-app behavior still needs device verification.**
+- APK version **0.4.1 / versionCode 9**. SHA-256: `f64b456043d075388357d3560715439e0ebca2e5a7a1a5e6c318f7dadf1b59c3`. Certificate SHA-256: `d85236d6b2b4b426fd1929c514d3453240cf7062e6c7f9e5509a9c83e82a553a`, matching earlier delivered builds. No phone installation or real transfers were performed for this update.
+- WorkManager remains inexact and subject to Android/Samsung power management. The symptom alone does not establish one device-specific cause. See [background and Cardano instructions](BACKGROUND.zh-TW.md) and the official Android/Samsung sources linked there.
+
 ## v0.4.0 — 2026-10-09
 
 - `testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest` succeeded with JDK 17 / Gradle 8.14 / SDK 35: **68 JVM tests passed**, including **14 portfolio-history tests**. Lint: **0 errors, 9 existing warnings**.

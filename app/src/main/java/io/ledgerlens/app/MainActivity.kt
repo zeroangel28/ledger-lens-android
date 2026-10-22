@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.provider.Settings
+import android.net.Uri
+import android.content.ActivityNotFoundException
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -44,6 +46,12 @@ class MainActivity: ComponentActivity() {
     }
     override fun onStart() { super.onStart(); model.setForeground(true) }
     override fun onStop() { model.setForeground(false); super.onStop() }
+    override fun onResume() { super.onResume(); model.refreshBackgroundHealth() }
+    private fun openBackgroundSettings(batteryList: Boolean) {
+        val intent = if (batteryList) Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+        try { startActivity(intent) } catch (_: ActivityNotFoundException) { startActivity(Intent(Settings.ACTION_SETTINGS)) }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
         setContent {
@@ -53,6 +61,7 @@ class MainActivity: ComponentActivity() {
             val transfer by model.transfer.collectAsStateWithLifecycle()
             val priceAlerts by model.priceAlerts.collectAsStateWithLifecycle()
             val history by model.history.collectAsStateWithLifecycle()
+            val backgroundHealth by model.backgroundHealth.collectAsStateWithLifecycle()
             LensTheme(state.preferences.theme) {
                 LensApp(state, devices, connection, model::refresh, model::connectUsb, {
                     val permissions = if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT) else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -63,7 +72,9 @@ class MainActivity: ComponentActivity() {
                     onPrepare = model::prepareTransfer, onConfirm = model::confirmTransfer, onVerify = model::verifyAddress, onStatus = model::refreshTransfers, onGenerateReceive = model::generateReceiveAddress,
                     priceAlerts = priceAlerts, onPriceAlerts = { settings -> if (settings.enabled) withNotifications { model.updatePriceAlerts(settings) } else model.updatePriceAlerts(settings) },
                     onTestNotification = { withNotifications(model::testPriceNotification) }, onNotificationSettings = { startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)) },
-                    history = history, onHistory = model::refreshHistory)
+                    history = history, onHistory = model::refreshHistory, backgroundHealth = backgroundHealth,
+                    onBatterySettings = { openBackgroundSettings(false) }, onBatteryOptimizationSettings = { openBackgroundSettings(true) },
+                    onBackgroundTest = { withNotifications(model::scheduleBackgroundTest) })
             }
         }
     }

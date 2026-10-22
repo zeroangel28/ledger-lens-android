@@ -26,7 +26,12 @@ class PriceAlertController private constructor(private val context: Application)
     @Volatile private var presentation: Pair<String, Boolean>? = null
     @Volatile var foreground = false
     private set
-    fun setForeground(active: Boolean) { foreground = active }
+    fun setForeground(active: Boolean) {
+        val changed = foreground != active
+        foreground = active
+        if (active) PriceAlertWorker.cancelFollowup(context)
+        else if (changed) PriceAlertWorker.afterForeground(context, status.value.settings, !locked)
+    }
     fun setPresentation(language: String, privacy: Boolean) { presentation = language to privacy }
     fun schedule() { PriceAlertWorker.schedule(context, journal.status.settings, !locked) }
     suspend fun updateSettings(settings: PriceAlertSettings) = journalMutex.withLock {
@@ -39,14 +44,25 @@ class PriceAlertController private constructor(private val context: Application)
     }
     suspend fun reportFailure(message: String) = journalMutex.withLock { mutableStatus.value = journal.status.copy(error = message) }
     fun testNotification(state: PortfolioState) = notifications.post(null, state.preferences.language, state.preferences.privacy)
+    private suspend fun record(transform: (PriceAlertStatus) -> PriceAlertStatus) = journalMutex.withLock {
+        check(!locked) { "Price alert storage unavailable" }
+        val updated = journal.copy(status = transform(journal.status))
+        withContext(Dispatchers.IO) { store.save(updated) }
+        journal = updated; mutableStatus.value = updated.status
+    }
+    suspend fun backgroundStarted() = record { it.copy(lastBackgroundAttemptAt = System.currentTimeMillis(), backgroundResult = null, backgroundError = null) }
+    suspend fun backgroundFinished(result: AlertCheckResult, error: String? = null) = record { it.backgroundFinished(result, System.currentTimeMillis(), error) }
+    suspend fun backgroundTestFinished(error: String? = null) = record { it.copy(lastBackgroundTestAt = if (error == null) System.currentTimeMillis() else it.lastBackgroundTestAt, backgroundTestError = error) }
 
-    suspend fun check(state: PortfolioState, supplied: Map<String, Quote>? = null) {
-        if (locked || !status.value.settings.enabled || !checkMutex.tryLock()) return
+    suspend fun check(state: PortfolioState, supplied: Map<String, Quote>? = null): AlertCheckResult {
+        if (locked) return AlertCheckResult.FAILED
+        if (!status.value.settings.enabled || !checkMutex.tryLock()) return AlertCheckResult.SKIPPED
         try {
-            if (supplied == null && (!status.value.settings.background || foreground)) return
-            if (!notifications.available()) { reportFailure("Price alert notifications blocked"); return }
+            if (supplied == null && (!status.value.settings.background || foreground)) return AlertCheckResult.SKIPPED
+            if (!notifications.available()) { reportFailure("Price alert notifications blocked"); return AlertCheckResult.BLOCKED }
             val startSettings = status.value.settings
             val assets = monitoredPriceAssets(state.assets)
+            if (assets.isEmpty()) return AlertCheckResult.NO_HOLDINGS
             val saved = journalMutex.withLock { journal }
             val markets = (state.spotMarkets.keys + saved.markets.keys).associateWith { pair -> listOfNotNull(state.spotMarkets[pair], saved.markets[pair]).maxBy { it.checkedAt } }
             val prices = BinancePrices(Http(), markets)
@@ -71,10 +87,10 @@ class PriceAlertController private constructor(private val context: Application)
                 if (data != null) { evaluations[pair] = data; references[pair] = data.second }
                 error?.let { errors += it }
             }
-            journalMutex.withLock {
+            return journalMutex.withLock {
                 // A user can disable/change alerts during network I/O; discard that obsolete check.
-                if (journal.status.settings != startSettings || !startSettings.enabled) return@withLock
-                if (supplied == null && foreground) return@withLock
+                if (journal.status.settings != startSettings || !startSettings.enabled) return@withLock AlertCheckResult.SKIPPED
+                if (supplied == null && foreground) return@withLock AlertCheckResult.SKIPPED
                 val records = journal.latches.toMutableMap(); val moves = mutableListOf<PriceMove>()
                 var checkedCount = 0
                 val checkedAt = System.currentTimeMillis()
@@ -91,10 +107,12 @@ class PriceAlertController private constructor(private val context: Application)
                 journal = updated; mutableStatus.value = updated.status
                 // Persistence precedes delivery, avoiding duplicate alerts after a crash/restart.
                 val display = presentation ?: (state.preferences.language to state.preferences.privacy)
-                moves.forEach { if (!notifications.post(it, display.first, display.second)) mutableStatus.value = updated.status.copy(error = "Price alert notifications blocked") }
+                var blocked = false
+                moves.forEach { if (!notifications.post(it, display.first, display.second)) { blocked = true; mutableStatus.value = updated.status.copy(error = "Price alert notifications blocked") } }
+                if (blocked) AlertCheckResult.BLOCKED else if (checkedCount > 0) AlertCheckResult.CHECKED else AlertCheckResult.NO_VALID_PRICES
             }
         } catch (e: CancellationException) { throw e }
-        catch (e: Exception) { reportFailure(e.message ?: "Price alert check failed") }
+        catch (e: Exception) { reportFailure(e.message ?: "Price alert check failed"); return AlertCheckResult.FAILED }
         finally { checkMutex.unlock() }
     }
     companion object {

@@ -44,6 +44,9 @@ class PriceAlertStore(context: Context) {
             val records = JSONObject(); j.latches.forEach { (pair, l) -> records.put(pair, JSONObject().put("threshold", l.threshold).put("above", l.above).put("sent", l.lastSentAt).put("below", l.below).put("fallSent", l.lastFallSentAt)) }
             val markets = JSONObject(); j.markets.forEach { (pair, m) -> markets.put(pair, JSONObject().put("tradable", m.tradable).put("at", m.checkedAt)) }
             return JSONObject().put("schema", 1).put("enabled", p.enabled).put("threshold", p.thresholdPercent).put("background", p.background).put("checked", s.lastCheckedAt).put("error", s.error).put("latches", records).put("markets", markets)
+                .put("backgroundAttempt", s.lastBackgroundAttemptAt).put("backgroundChecked", s.lastBackgroundCheckAt)
+                .put("backgroundResult", s.backgroundResult?.name).put("backgroundError", s.backgroundError)
+                .put("backgroundTest", s.lastBackgroundTestAt).put("backgroundTestError", s.backgroundTestError)
         }
         fun decode(root: JSONObject): PriceAlertJournal {
             require(root.getInt("schema") == 1)
@@ -53,7 +56,11 @@ class PriceAlertStore(context: Context) {
                 all.getJSONObject(key).let { PriceAlertLatch(it.getInt("threshold"), it.getBoolean("above"), it.getLong("sent"), it.optBoolean("below", false), it.optLong("fallSent", 0)) }
             } }
             val markets = root.getJSONObject("markets").let { all -> all.keys().asSequence().associateWith { key -> all.getJSONObject(key).let { SpotMarket(it.getBoolean("tradable"), it.getLong("at")) } } }
-            return PriceAlertJournal(PriceAlertStatus(settings, root.getLong("checked"), root.optString("error").takeIf { it.isNotEmpty() }), latches, markets)
+            val result = root.optString("backgroundResult").takeIf { it.isNotEmpty() }?.let { value -> AlertCheckResult.entries.firstOrNull { it.name == value } }
+            val status = PriceAlertStatus(settings, root.getLong("checked"), root.optString("error").takeIf { it.isNotEmpty() },
+                root.optLong("backgroundAttempt"), root.optLong("backgroundChecked"), result, root.optString("backgroundError").takeIf { it.isNotEmpty() },
+                root.optLong("backgroundTest"), root.optString("backgroundTestError").takeIf { it.isNotEmpty() })
+            return PriceAlertJournal(status, latches, markets)
         }
     }
 }
