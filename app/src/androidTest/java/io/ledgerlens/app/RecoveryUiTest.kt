@@ -16,6 +16,10 @@ import java.math.BigDecimal
 
 class RecoveryUiTest {
     @get:Rule val compose = createComposeRule()
+    private fun scrollToText(text: String, substring: Boolean = false): SemanticsNodeInteraction {
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(text, substring = substring))
+        return compose.onAllNodesWithText(text, substring = substring).onFirst()
+    }
     private fun capture(name: String) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         File(context.cacheDir, name).outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -31,13 +35,13 @@ class RecoveryUiTest {
             ada.id to AccountSnapshot(listOf(known), at = now, lastAttemptAt = now)
         ), Preferences(theme = "dark", hideZeroBalance = true, hideZeroValue = true), updatedAt = now)
         compose.setContent { LensTheme("dark") { LensApp(state, emptyList(), null, {}, {}, {}, {}, {}, { _, _, _ -> }, {}, {}, {}, {}) } }
-        compose.onNodeWithText("單價（USDT） · 0.15").performScrollTo().assertIsDisplayed()
+        scrollToText("單價（USDT） · 0.15").assertIsDisplayed()
         compose.onNodeWithText("餘額尚未取得").assertIsDisplayed()
         capture("recovery-prices.png")
         compose.onNodeWithText("帳戶").performClick()
-        compose.onNodeWithText("TronGrid 拒絕或限制查詢。", substring = true).performScrollTo().assertIsDisplayed()
+        scrollToText("TronGrid 拒絕或限制查詢。", substring = true).assertIsDisplayed()
         capture("recovery-tron.png")
-        compose.onNodeWithText("Cardano 已取消每日同步限制", substring = true).performScrollTo().assertIsDisplayed()
+        scrollToText("Cardano 已取消每日同步限制", substring = true).assertIsDisplayed()
         compose.onNodeWithText("下次可同步持倉", substring = true).assertDoesNotExist()
         capture("recovery-cardano.png")
     }
@@ -48,11 +52,11 @@ class RecoveryUiTest {
             LensTheme("system") { LensApp(state, emptyList(), null, {}, {}, {}, {}, {}, { _, _, _ -> }, { saved = it; state = state.copy(preferences = it) }, {}, {}, {}) }
         }
         compose.onNodeWithText("設定").performClick()
-        compose.onNodeWithText("TronGrid API key").performScrollTo().performTextInput("test-data-service-key")
-        compose.onNodeWithText("前往 TronGrid 建立 API key").performScrollTo().assertIsDisplayed()
-        compose.onAllNodesWithText("儲存設定").onFirst().performScrollTo().performClick()
+        scrollToText("TronGrid API key").performTextInput("test-data-service-key")
+        scrollToText("前往 TronGrid 建立 API key").assertIsDisplayed()
+        scrollToText("儲存設定").performClick()
         compose.runOnIdle { assertEquals("test-data-service-key", saved.tronGridKey) }
-        compose.onNodeWithText("Cardano 已取消每日同步限制", substring = true).performScrollTo().assertIsDisplayed()
+        scrollToText("Cardano 已取消每日同步限制", substring = true).assertIsDisplayed()
         capture("recovery-settings.png")
     }
     @Test fun knownBalanceWithoutQuotesDoesNotShowZeroTotal() {
@@ -62,15 +66,15 @@ class RecoveryUiTest {
         compose.setContent { LensTheme("system") { LensApp(state, emptyList(), null, {}, {}, {}, {}, {}, { _, _, _ -> }, {}, {}, {}, {}) } }
         compose.onNodeWithText("—").assertIsDisplayed()
         compose.onNodeWithText("0.00").assertDoesNotExist()
-        compose.onNodeWithText("單價（USDT） · —").performScrollTo().assertIsDisplayed()
+        scrollToText("單價（USDT） · —").assertIsDisplayed()
     }
     @Test fun holdingsButtonRefreshesAgainWithoutConfusingItWithPrices() {
         val account = Account("ada", "Fixture ADA", Chain.ADA, Chain.ADA.path(0), "public", "public address")
         val state = PortfolioState(listOf(account), mapOf(account.id to AccountSnapshot(listOf(nativePlaceholder(account)))))
         var balances = 0; var prices = 0
         compose.setContent { LensTheme("light") { LensApp(state, emptyList(), null, { balances++ }, {}, {}, {}, {}, { _, _, _ -> }, {}, {}, {}, {}, onPrices = { prices++ }) } }
-        compose.onNodeWithText("更新持倉餘額").performScrollTo().performClick().performClick()
-        compose.onNodeWithText("更新價格 · 前景每 30 秒").performScrollTo().performClick()
+        scrollToText("更新持倉餘額").performClick().performClick()
+        scrollToText("更新價格 · 前景每 30 秒").performClick()
         compose.runOnIdle { assertEquals(2, balances); assertEquals(1, prices) }
     }
 }
