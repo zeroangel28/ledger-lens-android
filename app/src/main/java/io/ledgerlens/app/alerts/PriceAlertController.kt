@@ -33,14 +33,15 @@ class PriceAlertController private constructor(private val context: Application)
         else if (changed) PriceAlertWorker.afterForeground(context, status.value.settings, !locked)
     }
     fun setPresentation(language: String, privacy: Boolean) { presentation = language to privacy }
-    fun schedule() { PriceAlertWorker.schedule(context, journal.status.settings, !locked) }
+    suspend fun schedule() = journalMutex.withLock { PriceAlertWorker.schedule(context, journal.status.settings, !locked) }
     suspend fun updateSettings(settings: PriceAlertSettings) = journalMutex.withLock {
         check(!locked) { "Price alert storage unavailable" }
         val old = journal.status.settings
         val records = if (old.enabled != settings.enabled || old.thresholdPercent != settings.thresholdPercent) journal.latches.mapValues { (_, l) -> l.copy(above = false, below = false) } else journal.latches
         val updated = journal.copy(status = journal.status.copy(settings = settings, error = null), latches = records)
         withContext(Dispatchers.IO) { store.save(updated) }
-        journal = updated; mutableStatus.value = updated.status; schedule()
+        journal = updated; mutableStatus.value = updated.status
+        PriceAlertWorker.schedule(context, settings, !locked)
     }
     suspend fun reportFailure(message: String) = journalMutex.withLock { mutableStatus.value = journal.status.copy(error = message) }
     fun testNotification(state: PortfolioState) = notifications.post(null, state.preferences.language, state.preferences.privacy)

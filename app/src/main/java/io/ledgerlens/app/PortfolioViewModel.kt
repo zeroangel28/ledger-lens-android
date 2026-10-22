@@ -44,8 +44,9 @@ class PortfolioViewModel(app: Application): AndroidViewModel(app) {
     private var historyJob: Job? = null
     private var requestedHistoryAssets: List<Asset> = emptyList()
     init {
-        alerts.setPresentation(initial.preferences.language, initial.preferences.privacy); alerts.schedule()
+        alerts.setPresentation(initial.preferences.language, initial.preferences.privacy)
         viewModelScope.launch {
+            alerts.schedule()
             WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(PriceAlertWorker.UNIQUE_NAME).collect { work ->
                 val current = work.firstOrNull { it.state == WorkInfo.State.RUNNING } ?: work.firstOrNull { !it.state.isFinished }
                 val label = when (current?.state) { WorkInfo.State.RUNNING -> "backgroundRunning"; WorkInfo.State.ENQUEUED -> "backgroundScheduled"; WorkInfo.State.BLOCKED -> "backgroundWaiting"; else -> "backgroundUnscheduled" }
